@@ -5,7 +5,7 @@ import (
 
 	"github.com/crochee/lirity/logger"
 
-	"github.com/crochee/saty/internal/store"
+	"github.com/crochee/devt/internal/store"
 )
 
 type CreateOpts struct {

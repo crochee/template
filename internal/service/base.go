@@ -1,6 +1,6 @@
 package service
 
-import "github.com/crochee/saty/internal/service/user"
+import "github.com/crochee/devt/internal/service/user"
 
 type Service interface {
 	Users() user.UserSrv

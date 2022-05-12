@@ -3,7 +3,7 @@ package store
 import (
 	"context"
 
-	"github.com/crochee/saty/internal/model"
+	"github.com/crochee/devt/internal/model"
 )
 
 type CreateOpts struct {

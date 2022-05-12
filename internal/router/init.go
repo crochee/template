@@ -6,9 +6,8 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/crochee/saty/api/v1/user"
-	"github.com/crochee/saty/internal/middleware"
-	"github.com/crochee/saty/internal/v"
+	"github.com/crochee/devt/internal/middleware"
+	"github.com/crochee/devt/internal/v"
 )
 
 // New gin router
@@ -34,5 +33,5 @@ func New() *gin.Engine {
 
 func v1RouterGroup(router *gin.Engine) {
 	v1Router := router.Group("/v1")
-	v1Router.GET("/demod", user.List)
+	v1Router.GET("/demod")
 }

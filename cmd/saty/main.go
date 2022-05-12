@@ -18,10 +18,10 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/crochee/saty/config"
-	"github.com/crochee/saty/internal/code"
-	"github.com/crochee/saty/internal/router"
-	"github.com/crochee/saty/internal/v"
+	"github.com/crochee/devt/config"
+	"github.com/crochee/devt/internal/code"
+	"github.com/crochee/devt/internal/router"
+	"github.com/crochee/devt/internal/v"
 )
 
 var configFile = flag.String("f", "./conf/caty.yaml", "the config file")
