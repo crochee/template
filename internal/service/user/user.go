@@ -3,9 +3,8 @@ package user
 import (
 	"context"
 
-	"github.com/crochee/lirity/logger"
-
 	"github.com/crochee/devt/internal/store"
+	"github.com/crochee/devt/pkg/logger"
 )
 
 type CreateOpts struct {

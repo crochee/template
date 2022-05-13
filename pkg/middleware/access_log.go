@@ -5,9 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/crochee/lirity/logger"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
+
+	"github.com/crochee/devt/pkg/logger"
 )
 
 // Log request logx

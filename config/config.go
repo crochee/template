@@ -3,7 +3,7 @@ package config
 import (
 	"path/filepath"
 
-	"github.com/crochee/lirity/config"
+	"github.com/crochee/devt/pkg/config"
 )
 
 // LoadConfig init Config

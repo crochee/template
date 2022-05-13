@@ -1,12 +1,7 @@
-// Copyright (c) Huawei Technologies Co., Ltd. 2020-2020. All rights reserved.
-// Description:
-// Author: l30002214
-// Create: 2020/12/8
-
-// Package middleware
 package middleware
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http/httputil"
@@ -14,10 +9,11 @@ import (
 	"runtime/debug"
 	"strings"
 
-	"github.com/crochee/lirity/e"
-	"github.com/crochee/lirity/logger"
 	"github.com/gin-gonic/gin"
-	"github.com/pkg/errors"
+
+	"github.com/crochee/devt/pkg/code"
+	"github.com/crochee/devt/pkg/logger"
+	"github.com/crochee/devt/pkg/resp"
 )
 
 // Recovery panic logx
@@ -51,7 +47,7 @@ func Recovery(c *gin.Context) {
 			if brokenPipe {
 				extra = fmt.Sprintf("broken pipe or connection reset by peer;%v", r)
 			}
-			e.Code(c, e.ErrInternalServerError.WithResult(extra))
+			resp.Error(c, code.ErrInternalServerError.WithResult(extra))
 		}
 	}()
 	c.Next()

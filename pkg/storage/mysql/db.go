@@ -8,13 +8,13 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/rs/zerolog"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 	glogger "gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 
-	"anchor/pkg/logger"
+	"github.com/crochee/devt/pkg/logger"
+	"github.com/crochee/devt/pkg/logger/gormx"
 )
 
 type option struct {
@@ -117,7 +117,7 @@ func Dsn(user, password, ip, port, database, charset string, timeout, readTimeou
 type opt struct {
 	slowThreshold time.Duration
 	colorful      bool
-	levelFunc     func(zerolog.Level, bool) glogger.LogLevel
+	levelFunc     func(glogger.LogLevel, bool) glogger.LogLevel
 }
 
 type Opt func(*opt)
@@ -133,35 +133,26 @@ func (d *DB) With(ctx context.Context, opts ...Opt) *DB {
 	o := &opt{
 		slowThreshold: 10 * time.Second,
 		colorful:      false,
-		levelFunc:     GetLevel,
+		levelFunc:     getLevel,
 	}
 	for _, f := range opts {
 		f(o)
 	}
 	return &DB{DB: d.Session(&gorm.Session{
 		Context: ctx,
-		Logger: NewLog(l, glogger.Config{
+		Logger: gormx.NewLog(l, glogger.Config{
 			SlowThreshold: o.slowThreshold,
 			Colorful:      o.colorful,
-			LogLevel:      o.levelFunc(l.GetLevel(), d.debug),
+			LogLevel:      o.levelFunc(glogger.Warn, d.debug),
 		}),
 	}),
 		debug: d.debug,
 	}
 }
 
-func GetLevel(l zerolog.Level, debug bool) glogger.LogLevel {
+func getLevel(l glogger.LogLevel, debug bool) glogger.LogLevel {
 	if debug {
 		return glogger.Info
 	}
-	switch l {
-	case zerolog.TraceLevel, zerolog.DebugLevel:
-		return glogger.Info
-	case zerolog.InfoLevel, zerolog.WarnLevel:
-		return glogger.Warn
-	case zerolog.ErrorLevel, zerolog.PanicLevel, zerolog.FatalLevel:
-		return glogger.Error
-	default:
-		return glogger.Silent
-	}
+	return l
 }

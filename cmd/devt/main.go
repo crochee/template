@@ -11,8 +11,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/crochee/lirity/logger"
-	"github.com/crochee/lirity/routine"
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -21,10 +19,12 @@ import (
 	"github.com/crochee/devt/config"
 	"github.com/crochee/devt/internal/code"
 	"github.com/crochee/devt/internal/router"
-	"github.com/crochee/devt/internal/v"
+	"github.com/crochee/devt/internal/util/v"
+	"github.com/crochee/devt/pkg/logger"
+	"github.com/crochee/devt/pkg/routine"
 )
 
-var configFile = flag.String("f", "./conf/caty.yaml", "the config file")
+var configFile = flag.String("f", "./conf/devt.yaml", "the config file")
 
 func main() {
 	flag.Parse()

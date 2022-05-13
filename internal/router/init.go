@@ -1,13 +1,13 @@
 package router
 
 import (
-	"github.com/crochee/lirity/logger"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"github.com/crochee/devt/internal/middleware"
-	"github.com/crochee/devt/internal/v"
+	"github.com/crochee/devt/internal/util/v"
+	"github.com/crochee/devt/pkg/logger"
+	"github.com/crochee/devt/pkg/middleware"
 )
 
 // New gin router

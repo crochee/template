@@ -1,16 +1,16 @@
-package mysql
+package gormx
 
 import (
 	"context"
 	"fmt"
 	"time"
 
-	"github.com/rs/zerolog"
+	"go.uber.org/zap"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/utils"
 )
 
-func NewLog(l *zerolog.Logger, cfg logger.Config) logger.Interface {
+func NewLog(l *zap.Logger, cfg logger.Config) logger.Interface {
 	var (
 		infoStr      = "%s\n[info] "
 		warnStr      = "%s\n[warn] "
@@ -44,7 +44,7 @@ func NewLog(l *zerolog.Logger, cfg logger.Config) logger.Interface {
 }
 
 type gormLog struct {
-	*zerolog.Logger
+	*zap.Logger
 	logger.Config
 	infoStr, warnStr, errStr            string
 	traceStr, traceErrStr, traceWarnStr string
@@ -57,19 +57,22 @@ func (g *gormLog) LogMode(level logger.LogLevel) logger.Interface {
 
 func (g *gormLog) Info(_ context.Context, msg string, data ...interface{}) {
 	if g.LogLevel >= logger.Info {
-		g.Logger.Info().Msgf(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
+		g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+			Infof(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
 	}
 }
 
 func (g *gormLog) Warn(_ context.Context, msg string, data ...interface{}) {
 	if g.LogLevel >= logger.Warn {
-		g.Logger.Warn().Msgf(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
+		g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+			Warnf(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
 	}
 }
 
 func (g *gormLog) Error(_ context.Context, msg string, data ...interface{}) {
 	if g.LogLevel >= logger.Error {
-		g.Logger.Error().Msgf(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
+		g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+			Errorf(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
 	}
 }
 
@@ -84,30 +87,36 @@ func (g *gormLog) Trace(_ context.Context, begin time.Time, fc func() (string, i
 	case err != nil && g.LogLevel >= logger.Error:
 		s, rows := fc()
 		if rows == -1 {
-			g.Logger.Error().Msgf(g.traceErrStr, utils.FileWithLineNum(), err,
-				float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
+			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+				Errorf(g.traceErrStr, utils.FileWithLineNum(), err,
+					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
 		} else {
-			g.Logger.Error().Msgf(g.traceErrStr, utils.FileWithLineNum(), err,
-				float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
+			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+				Errorf(g.traceErrStr, utils.FileWithLineNum(), err,
+					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
 		}
 	case elapsed > g.SlowThreshold && g.SlowThreshold != 0 && g.LogLevel >= logger.Warn:
 		s, rows := fc()
 		slowLog := fmt.Sprintf("SLOW SQL >= %v", g.SlowThreshold)
 		if rows == -1 {
-			g.Logger.Warn().Msgf(g.traceWarnStr, utils.FileWithLineNum(), slowLog,
-				float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
+			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+				Warnf(g.traceWarnStr, utils.FileWithLineNum(), slowLog,
+					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
 		} else {
-			g.Logger.Warn().Msgf(g.traceWarnStr, utils.FileWithLineNum(), slowLog,
-				float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
+			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+				Warnf(g.traceWarnStr, utils.FileWithLineNum(), slowLog,
+					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
 		}
 	case g.LogLevel == logger.Info:
 		s, rows := fc()
 		if rows == -1 {
-			g.Logger.Info().Msgf(g.traceStr, utils.FileWithLineNum(),
-				float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
+			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+				Infof(g.traceStr, utils.FileWithLineNum(),
+					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
 		} else {
-			g.Logger.Info().Msgf(g.traceStr, utils.FileWithLineNum(),
-				float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
+			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+				Infof(g.traceStr, utils.FileWithLineNum(),
+					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
 		}
 	}
 }

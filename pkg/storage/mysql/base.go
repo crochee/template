@@ -8,7 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"anchor/pkg/idx"
+	"github.com/crochee/devt/pkg/idx"
 )
 
 type Time struct {

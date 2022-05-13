@@ -1,7 +1,3 @@
-// Author: crochee
-// Date: 2021/9/2
-
-// Package idx
 package idx
 
 import (
