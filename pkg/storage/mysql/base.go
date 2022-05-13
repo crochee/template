@@ -17,30 +17,30 @@ type Time struct {
 	DeletedAt DeletedAt `json:"-" gorm:"column:deleted_at;index;comment:删除时间"`
 }
 
-type PrimaryKeyID string
+type PkID string
 
-func (p *PrimaryKeyID) BeforeCreate(tx *gorm.DB) error {
+func (p *PkID) BeforeCreate(tx *gorm.DB) error {
 	if len(*p) == 0 {
 		snowID, err := idx.NextID()
 		if err != nil {
 			return err
 		}
-		*p = PrimaryKeyID(strconv.FormatUint(snowID, 10))
+		*p = PkID(strconv.FormatUint(snowID, 10))
 	}
 	return nil
 }
 
 // Scan implements the Scanner interface.
-func (p *PrimaryKeyID) Scan(value interface{}) error {
+func (p *PkID) Scan(value interface{}) error {
 	v, ok := value.(uint64)
 	if !ok {
 		return fmt.Errorf("%v isn't u64", value)
 	}
-	*p = PrimaryKeyID(strconv.FormatUint(v, 10))
+	*p = PkID(strconv.FormatUint(v, 10))
 	return nil
 }
 
 // Value implements the driver Valuer interface.
-func (p *PrimaryKeyID) Value() (driver.Value, error) {
+func (p *PkID) Value() (driver.Value, error) {
 	return strconv.ParseUint(string(*p), 10, 64)
 }
