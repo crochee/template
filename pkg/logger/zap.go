@@ -3,9 +3,9 @@ package logger
 import (
 	"os"
 
-	"go-template/pkg/logger/console"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"go_template/pkg/logger/console"
 )
 
 const (

@@ -8,7 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
-	"go-template/pkg/idx"
+	"go_template/pkg/idx"
 )
 
 type Time struct {
@@ -18,17 +18,6 @@ type Time struct {
 }
 
 type PrimaryKeyID string
-
-func (p *PrimaryKeyID) BeforeCreate(tx *gorm.DB) error {
-	if len(*p) == 0 {
-		snowID, err := idx.NextID()
-		if err != nil {
-			return err
-		}
-		*p = PrimaryKeyID(strconv.FormatUint(snowID, 10))
-	}
-	return nil
-}
 
 // Scan implements the Scanner interface.
 func (p *PrimaryKeyID) Scan(value interface{}) error {
@@ -43,4 +32,24 @@ func (p *PrimaryKeyID) Scan(value interface{}) error {
 // Value implements the driver Valuer interface.
 func (p *PrimaryKeyID) Value() (driver.Value, error) {
 	return strconv.ParseUint(string(*p), 10, 64)
+}
+
+type Base struct {
+	ID PrimaryKeyID `json:"id,string" gorm:"primary_key:id"`
+	Time
+}
+
+func (b *Base) BeforeCreate(db *gorm.DB) error {
+	if len(b.ID) == 0 {
+		snowID, err := idx.NextID()
+		if err != nil {
+			return err
+		}
+		b.ID = PrimaryKeyID(strconv.FormatUint(snowID, 10))
+	}
+	return nil
+}
+
+func (b *Base) PK() string {
+	return string(b.ID)
 }

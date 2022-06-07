@@ -2,9 +2,14 @@ package store
 
 var client Factory
 
-// Factory defines the iam platform storage interface.
+// Factory defines the storage interface.
 type Factory interface {
-	Users() UserHandler
+	Begin() Factory
+	Commit()
+	Rollback()
+	Auth() AuthorControlStore
+	Flow() ChangeFlowStore
+	Pkg() ResourcePkgStore
 }
 
 // Client return the store client instance.

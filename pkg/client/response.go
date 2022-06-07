@@ -5,7 +5,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 
-	"go-template/pkg/code"
+	"go_template/pkg/code"
 )
 
 type RespOpt func(*responseOption)

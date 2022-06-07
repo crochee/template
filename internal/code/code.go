@@ -1,6 +1,6 @@
 package code
 
-import "go-template/pkg/code"
+import "go_template/pkg/code"
 
 var (
 	// 000~099 系统类

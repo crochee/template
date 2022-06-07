@@ -11,7 +11,7 @@ import (
 	"github.com/json-iterator/go"
 	"github.com/streadway/amqp"
 
-	"go-template/pkg/validator"
+	"go_template/pkg/validator"
 )
 
 type Producer interface {

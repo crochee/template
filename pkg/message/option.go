@@ -5,7 +5,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 
-	"go-template/pkg/validator"
+	"go_template/pkg/validator"
 )
 
 type option struct {

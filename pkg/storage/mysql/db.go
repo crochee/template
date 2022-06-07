@@ -13,46 +13,44 @@ import (
 	glogger "gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 
-	"go-template/pkg/logger"
-	"go-template/pkg/logger/gormx"
+	"go_template/pkg/logger"
+	"go_template/pkg/logger/gormx"
 )
 
-type option struct {
-	debug bool
+type Option struct {
+	Debug bool
 
-	maxOpenConn int
-	maxIdleConn int
+	MaxOpenConn int
+	MaxIdleConn int
 
-	user     string
-	password string
+	User     string
+	Password string
 	IP       string
-	port     string
-	database string
-	charset  string
+	Port     string
+	Database string
+	Charset  string
 
-	timeout         time.Duration
-	readTimeout     time.Duration
-	writeTimeout    time.Duration
-	connMaxLifetime time.Duration
+	Timeout         time.Duration
+	ReadTimeout     time.Duration
+	WriteTimeout    time.Duration
+	ConnMaxLifetime time.Duration
 }
 
-type Option func(*option)
-
 // New init DB
-func New(ctx context.Context, opts ...Option) (*DB, error) {
-	o := &option{
-		debug:       true,
-		maxOpenConn: 100,
-		maxIdleConn: 80,
+func New(ctx context.Context, opts ...func(*Option)) (*DB, error) {
+	o := &Option{
+		Debug:       true,
+		MaxOpenConn: 100,
+		MaxIdleConn: 80,
 		IP:          "127.0.0.1",
-		port:        "3306",
-		charset:     "utf8mb4",
+		Port:        "3306",
+		Charset:     "utf8mb4",
 	}
 	for _, f := range opts {
 		f(o)
 	}
-	client, err := gorm.Open(mysql.Open(Dsn(o.user, o.password, o.IP, o.port,
-		o.database, o.charset, o.timeout, o.readTimeout, o.writeTimeout)),
+	client, err := gorm.Open(mysql.Open(Dsn(o.User, o.Password, o.IP, o.Port,
+		o.Database, o.Charset, o.Timeout, o.ReadTimeout, o.WriteTimeout)),
 		&gorm.Config{
 			SkipDefaultTransaction: false,
 			NamingStrategy: schema.NamingStrategy{
@@ -69,7 +67,7 @@ func New(ctx context.Context, opts ...Option) (*DB, error) {
 		return nil, err
 	}
 	session := &gorm.Session{Context: ctx}
-	if o.debug { // 是否显示sql语句
+	if o.Debug { // 是否显示sql语句
 		session.Logger = client.Logger.LogMode(glogger.Info)
 	}
 	client = client.Session(session)
@@ -79,11 +77,11 @@ func New(ctx context.Context, opts ...Option) (*DB, error) {
 		return nil, err
 	}
 	// 连接池配置
-	sqlDB.SetMaxOpenConns(o.maxOpenConn)        // 默认值0，无限制
-	sqlDB.SetMaxIdleConns(o.maxIdleConn)        // 默认值2
-	sqlDB.SetConnMaxLifetime(o.connMaxLifetime) // 默认值0，永不过期
+	sqlDB.SetMaxOpenConns(o.MaxOpenConn)        // 默认值0，无限制
+	sqlDB.SetMaxIdleConns(o.MaxIdleConn)        // 默认值2
+	sqlDB.SetConnMaxLifetime(o.ConnMaxLifetime) // 默认值0，永不过期
 
-	c := &DB{DB: client, debug: o.debug}
+	c := &DB{DB: client, Debug: o.Debug}
 	runtime.SetFinalizer(c, closeClient)
 	return c, nil
 }
@@ -118,13 +116,14 @@ type opt struct {
 	slowThreshold time.Duration
 	colorful      bool
 	levelFunc     func(glogger.LogLevel, bool) glogger.LogLevel
+	debug         bool
 }
 
 type Opt func(*opt)
 
 type DB struct {
 	*gorm.DB
-	debug bool
+	Debug bool
 }
 
 // With options to set orm logger
@@ -138,16 +137,20 @@ func (d *DB) With(ctx context.Context, opts ...Opt) *DB {
 	for _, f := range opts {
 		f(o)
 	}
-	return &DB{DB: d.Session(&gorm.Session{
+	c := &DB{DB: d.Session(&gorm.Session{
 		Context: ctx,
 		Logger: gormx.NewLog(l, glogger.Config{
 			SlowThreshold: o.slowThreshold,
 			Colorful:      o.colorful,
-			LogLevel:      o.levelFunc(glogger.Warn, d.debug),
+			LogLevel:      o.levelFunc(glogger.Warn, d.Debug),
 		}),
 	}),
-		debug: d.debug,
+		Debug: d.Debug,
 	}
+	if !d.Debug {
+		c = setDebug(c, o.debug)
+	}
+	return c
 }
 
 func getLevel(l glogger.LogLevel, debug bool) glogger.LogLevel {
@@ -155,4 +158,33 @@ func getLevel(l glogger.LogLevel, debug bool) glogger.LogLevel {
 		return glogger.Info
 	}
 	return l
+}
+
+func WithNoInfoHandle(o *opt) {
+	o.levelFunc = noInfoHandle
+}
+
+func WithDebug(o *opt) {
+	o.debug = true
+}
+
+func noInfoHandle(level glogger.LogLevel, _ bool) glogger.LogLevel {
+	if level > glogger.Warn {
+		return glogger.Warn
+	}
+	return level
+}
+
+func setDebug(c *DB, debug bool) *DB {
+	if debug {
+		_ = c.Callback().Query().Before("gorm:query").Replace("QueryOpt", changeLogMode)
+	}
+	_ = c.Callback().Create().Before("gorm:create").Replace("CreateOpt", changeLogMode)
+	_ = c.Callback().Delete().Before("gorm:delete").Replace("DeleteOpt", changeLogMode)
+	_ = c.Callback().Update().Before("gorm:update").Replace("UpdateOpt", changeLogMode)
+	return c
+}
+
+func changeLogMode(db *gorm.DB) {
+	db.Logger = db.Logger.LogMode(glogger.Info)
 }

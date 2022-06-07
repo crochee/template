@@ -32,7 +32,7 @@ func NewLog(l *zap.Logger, cfg logger.Config) logger.Interface {
 			"[%.3fms] " + logger.BlueBold + "[rows:%v]" + logger.Reset + " %s"
 	}
 	return &gormLog{
-		Logger:       l,
+		Logger:       l.WithOptions(zap.WithCaller(false)),
 		Config:       cfg,
 		infoStr:      infoStr,
 		warnStr:      warnStr,
@@ -57,21 +57,21 @@ func (g *gormLog) LogMode(level logger.LogLevel) logger.Interface {
 
 func (g *gormLog) Info(_ context.Context, msg string, data ...interface{}) {
 	if g.LogLevel >= logger.Info {
-		g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+		g.Logger.Sugar().
 			Infof(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
 	}
 }
 
 func (g *gormLog) Warn(_ context.Context, msg string, data ...interface{}) {
 	if g.LogLevel >= logger.Warn {
-		g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+		g.Logger.Sugar().
 			Warnf(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
 	}
 }
 
 func (g *gormLog) Error(_ context.Context, msg string, data ...interface{}) {
 	if g.LogLevel >= logger.Error {
-		g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+		g.Logger.Sugar().
 			Errorf(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
 	}
 }
@@ -87,11 +87,11 @@ func (g *gormLog) Trace(_ context.Context, begin time.Time, fc func() (string, i
 	case err != nil && g.LogLevel >= logger.Error:
 		s, rows := fc()
 		if rows == -1 {
-			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+			g.Logger.Sugar().
 				Errorf(g.traceErrStr, utils.FileWithLineNum(), err,
 					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
 		} else {
-			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+			g.Logger.Sugar().
 				Errorf(g.traceErrStr, utils.FileWithLineNum(), err,
 					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
 		}
@@ -99,22 +99,22 @@ func (g *gormLog) Trace(_ context.Context, begin time.Time, fc func() (string, i
 		s, rows := fc()
 		slowLog := fmt.Sprintf("SLOW SQL >= %v", g.SlowThreshold)
 		if rows == -1 {
-			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+			g.Logger.Sugar().
 				Warnf(g.traceWarnStr, utils.FileWithLineNum(), slowLog,
 					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
 		} else {
-			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+			g.Logger.Sugar().
 				Warnf(g.traceWarnStr, utils.FileWithLineNum(), slowLog,
 					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
 		}
 	case g.LogLevel == logger.Info:
 		s, rows := fc()
 		if rows == -1 {
-			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+			g.Logger.Sugar().
 				Infof(g.traceStr, utils.FileWithLineNum(),
 					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
 		} else {
-			g.Logger.WithOptions(zap.WithCaller(false)).Sugar().
+			g.Logger.Sugar().
 				Infof(g.traceStr, utils.FileWithLineNum(),
 					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
 		}

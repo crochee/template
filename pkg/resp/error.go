@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"go-template/pkg/code"
+	"go_template/pkg/code"
 )
 
 type response struct {

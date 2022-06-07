@@ -7,7 +7,7 @@ import (
 
 	"moul.io/http2curl"
 
-	"go-template/pkg/logger"
+	"go_template/pkg/logger"
 )
 
 type Request interface {
