@@ -19,6 +19,7 @@ import (
 	"go_template/config"
 	"go_template/internal/code"
 	"go_template/internal/router"
+	"go_template/internal/store"
 	"go_template/internal/store/mysql"
 	"go_template/internal/util/v"
 	"go_template/pkg/json/extension"
@@ -82,6 +83,7 @@ func startAction(ctx context.Context, srv *http.Server) error {
 	if err := mysql.Init(ctx); err != nil {
 		return err
 	}
+	store.SetClient(mysql.GetMysqlFactory(ctx))
 	zap.S().Infof("run on %s", gin.Mode())
 	return srv.ListenAndServe()
 }
