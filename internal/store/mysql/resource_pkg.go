@@ -36,7 +36,7 @@ func (r resourcePkg) Create(ctx context.Context, opts *model.ResourcePkgCreateOp
 		ActiveTime:    opts.ActiveTime,
 		InactiveTime:  opts.InactiveTime,
 	}
-	if err := r.WithContext(ctx).Model(rp).Create(rp); err != nil {
+	if err := r.With(ctx).Model(rp).Create(rp); err != nil {
 		return "", errors.WithStack(code.ErrNoAccount.WithResult(err))
 	}
 	return rp.PK(), nil
@@ -44,14 +44,14 @@ func (r resourcePkg) Create(ctx context.Context, opts *model.ResourcePkgCreateOp
 
 func (r resourcePkg) Delete(ctx context.Context, resourceID string) error {
 	rp := &model.DcsResourcePkg{}
-	if err := r.WithContext(ctx).Model(rp).Where("resource_id= ?", resourceID).Delete(rp); err != nil {
+	if err := r.With(ctx).Model(rp).Where("resource_id= ?", resourceID).Delete(rp); err != nil {
 		return errors.WithStack(code.ErrNoAccount.WithResult(err))
 	}
 	return nil
 }
 
 func (r resourcePkg) Update(ctx context.Context, resourceID string, opts map[string]interface{}) error {
-	query := r.WithContext(ctx).Model(&model.DcsResourcePkg{}).
+	query := r.With(ctx).Model(&model.DcsResourcePkg{}).
 		Where("resource_id= ?", resourceID).Updates(opts)
 	if err := query.Error; err != nil {
 		return errors.WithStack(code.ErrNoAccount.WithResult(err))
@@ -63,7 +63,7 @@ func (r resourcePkg) Update(ctx context.Context, resourceID string, opts map[str
 }
 
 func (r resourcePkg) UpdateWhenNotFail(ctx context.Context, resourceID string, opts map[string]interface{}) error {
-	query := r.WithContext(ctx).Model(&model.DcsResourcePkg{}).
+	query := r.With(ctx).Model(&model.DcsResourcePkg{}).
 		Where("resource_id= ? AND pkg_status != ?", resourceID, model.OpenFail).Updates(opts)
 	if err := query.Error; err != nil {
 		return errors.WithStack(code.ErrNoAccount.WithResult(err))
@@ -75,7 +75,7 @@ func (r resourcePkg) UpdateWhenNotFail(ctx context.Context, resourceID string, o
 }
 
 func (r resourcePkg) UpdateWhenSuccess(ctx context.Context, resourceID string, opts map[string]interface{}) error {
-	query := r.WithContext(ctx).Model(&model.DcsResourcePkg{}).
+	query := r.With(ctx).Model(&model.DcsResourcePkg{}).
 		Where("resource_id= ? AND pkg_status = ?", resourceID, model.OpenSuccess).Updates(opts)
 	if err := query.Error; err != nil {
 		return errors.WithStack(code.ErrNoAccount.WithResult(err))
@@ -88,7 +88,7 @@ func (r resourcePkg) UpdateWhenSuccess(ctx context.Context, resourceID string, o
 
 func (r resourcePkg) ExistSuccess(ctx context.Context, accountID string) error {
 	var count int64
-	if err := r.WithContext(ctx).Model(&model.DcsResourcePkg{}).Select("id").
+	if err := r.With(ctx).Model(&model.DcsResourcePkg{}).Select("id").
 		Where("charge_type= ? and pkg_status= ? and account_id= ?",
 			model.ChargeByVolume, model.OpenSuccess, accountID).Count(&count).Error; err != nil {
 		logger.From(ctx).Error(err.Error())
