@@ -1,9 +1,11 @@
 package service
 
-import "go_template/internal/service/user"
+import (
+	"go_template/internal/service/authenticate"
+)
 
 type Service interface {
-	Users() user.UserSrv
+	Auth() authenticate.AuthenticateSrv
 }
 
 func NewService() Service {
@@ -13,6 +15,6 @@ func NewService() Service {
 type service struct {
 }
 
-func (s *service) Users() user.UserSrv {
-	return user.NewUserService()
+func (s *service) Auth() authenticate.AuthenticateSrv {
+	return authenticate.NewAuthenticateSrv()
 }
