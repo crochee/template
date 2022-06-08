@@ -5,9 +5,9 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"go-template/internal/util/v"
-	"go-template/pkg/logger"
-	"go-template/pkg/middleware"
+	"go_template/internal/util/v"
+	"go_template/pkg/logger"
+	"go_template/pkg/middleware"
 )
 
 // New gin router

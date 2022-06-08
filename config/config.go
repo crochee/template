@@ -3,7 +3,7 @@ package config
 import (
 	"path/filepath"
 
-	"go-template/pkg/config"
+	"go_template/pkg/config"
 )
 
 // LoadConfig init Config

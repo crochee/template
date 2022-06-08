@@ -16,12 +16,14 @@ import (
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
-	"go-template/config"
-	"go-template/internal/code"
-	"go-template/internal/router"
-	"go-template/internal/util/v"
-	"go-template/pkg/logger"
-	"go-template/pkg/routine"
+	"go_template/config"
+	"go_template/internal/code"
+	"go_template/internal/router"
+	"go_template/internal/store/mysql"
+	"go_template/internal/util/v"
+	"go_template/pkg/json/extension"
+	"go_template/pkg/logger"
+	"go_template/pkg/routine"
 )
 
 var configFile = flag.String("f", "./conf/template.yaml", "the config file")
@@ -75,7 +77,11 @@ func run() error {
 }
 
 func startAction(ctx context.Context, srv *http.Server) error {
-
+	extension.Register()
+	// 初始化数据库
+	if err := mysql.Init(ctx); err != nil {
+		return err
+	}
 	zap.S().Infof("run on %s", gin.Mode())
 	return srv.ListenAndServe()
 }

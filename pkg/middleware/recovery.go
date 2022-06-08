@@ -11,9 +11,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"go-template/pkg/code"
-	"go-template/pkg/logger"
-	"go-template/pkg/resp"
+	"go_template/pkg/code"
+	"go_template/pkg/logger"
+	"go_template/pkg/resp"
 )
 
 // Recovery panic logx

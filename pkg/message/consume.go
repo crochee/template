@@ -6,8 +6,8 @@ import (
 	"github.com/streadway/amqp"
 	"go.uber.org/zap"
 
-	"go-template/pkg/logger"
-	"go-template/pkg/routine"
+	"go_template/pkg/logger"
+	"go_template/pkg/routine"
 )
 
 // Consumer async impl

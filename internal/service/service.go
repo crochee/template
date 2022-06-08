@@ -1,6 +1,6 @@
 package service
 
-import "go-template/internal/service/user"
+import "go_template/internal/service/user"
 
 type Service interface {
 	Users() user.UserSrv
