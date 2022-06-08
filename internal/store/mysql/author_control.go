@@ -26,14 +26,14 @@ func (a authorControl) Create(ctx context.Context, opts *model.AuthorControlCrea
 		AccountID:     opts.AccountID,
 		AuthorControl: opts.AuthorControl,
 	}
-	if err := a.WithContext(ctx).Model(ac).Create(ac).Error; err != nil {
+	if err := a.With(ctx).Model(ac).Create(ac).Error; err != nil {
 		return "", errors.WithStack(code.ErrNoAccount.WithResult(err))
 	}
 	return ac.PK(), nil
 }
 
 func (a authorControl) Update(ctx context.Context, accountID string, opts map[string]interface{}) error {
-	query := a.WithContext(ctx).Model(&model.DcsAuthorControl{}).
+	query := a.With(ctx).Model(&model.DcsAuthorControl{}).
 		Where("account_id =?", accountID).
 		Updates(opts)
 	if err := query.Error; err != nil {
@@ -47,7 +47,7 @@ func (a authorControl) Update(ctx context.Context, accountID string, opts map[st
 
 func (a authorControl) Get(ctx context.Context, accountID string, selects ...string) (*model.DcsAuthorControl, error) {
 	var value model.DcsAuthorControl
-	query := a.WithContext(ctx).Model(&model.DcsAuthorControl{}).Where("account_id =?", accountID)
+	query := a.With(ctx).Model(&model.DcsAuthorControl{}).Where("account_id =?", accountID)
 	if len(selects) != 0 {
 		query = query.Select(selects[0])
 	}

@@ -28,7 +28,7 @@ func (r resourceChangeFlow) Create(ctx context.Context, opts *model.ChangeFlowCr
 		PurchaseNumber: opts.PurchaseNumber,
 		Reason:         opts.Reason,
 	}
-	if err := r.WithContext(ctx).Model(cf).Create(cf).Error; err != nil {
+	if err := r.With(ctx).Model(cf).Create(cf).Error; err != nil {
 		return "", errors.WithStack(code.ErrNoAccount.WithResult(err))
 	}
 	return cf.PK(), nil

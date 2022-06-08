@@ -33,11 +33,8 @@ func Init(ctx context.Context) (err error) {
 }
 
 // DB 若想使用SELECT打印日志，请使用DB(ctx,database.WithLog())
-func DB(ctx context.Context) *mysql.DB {
-	if viper.GetString("mode") != gin.ReleaseMode {
-		return dbClient.With(ctx)
-	}
-	return dbClient.With(ctx, mysql.WithNoInfoHandle)
+func DB(ctx context.Context, opts ...mysql.Opt) *mysql.DB {
+	return dbClient.With(ctx, opts...)
 }
 
 // GetMysqlFactory create mysql factory with context.Context
