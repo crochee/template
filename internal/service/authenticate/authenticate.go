@@ -5,9 +5,9 @@ import (
 
 	"github.com/pkg/errors"
 
-	"anchor/internal/code"
-	"anchor/internal/model"
-	"anchor/internal/store"
+	"go_template/internal/code"
+	"go_template/internal/model"
+	"go_template/internal/store"
 )
 
 type AuthenticateSrv interface {
@@ -27,10 +27,10 @@ func (a authSrv) Authenticate(ctx context.Context, accountID string) error {
 		return err
 	}
 	if ac.AuthorControl == model.ExpirationRestrictedControl {
-		return errors.WithStack(code.ErrForbidden.WithResult("用户资源包已到期"))
+		return errors.WithStack(code.ErrNoAccount.WithResult("用户资源包已到期"))
 	}
 	if ac.AuthorControl == model.DestructionRestrictedControl {
-		return errors.WithStack(code.ErrForbidden.WithResult("用户资源包已删除"))
+		return errors.WithStack(code.ErrNoAccount.WithResult("用户资源包已删除"))
 	}
 	return nil
 }

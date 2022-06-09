@@ -20,7 +20,7 @@ var (
 	dir        = flags.String("dir", ".", "directory with migration files")
 	verbose    = flags.Bool("v", false, "enable verbose mode")
 	help       = flags.Bool("h", false, "print help")
-	configFile = flag.String("f", "./conf/template.yaml", "the config file")
+	configFile = flag.String("f", "./config/template.yaml", "the config file")
 )
 
 func main() {

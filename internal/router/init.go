@@ -20,8 +20,8 @@ func New() *gin.Engine {
 		middleware.RequestLogger(
 			logger.New(
 				logger.WithFields(zap.String("service", v.ServiceName)),
-				logger.WithLevel(viper.GetString("level")),
-				logger.WithWriter(logger.SetWriter(viper.GetString("path"))))),
+				logger.WithLevel(viper.GetString("log.level")),
+				logger.WithWriter(logger.SetWriter(viper.GetString("log.path"))))),
 		middleware.Log,
 		middleware.Recovery,
 	)
