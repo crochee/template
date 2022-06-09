@@ -52,7 +52,12 @@ func main() {
 }
 
 func run() error {
-	ctx := context.Background()
+	ctx := logger.With(context.Background(),
+		logger.New(
+			logger.WithFields(zap.String("service", v.ServiceName)),
+			logger.WithLevel(viper.GetString("log.level")),
+			logger.WithWriter(logger.SetWriter(viper.GetString("log.path")))),
+	)
 	g := routine.NewGroup(ctx)
 	srv := &http.Server{
 		Addr:    ":8080",
