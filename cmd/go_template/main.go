@@ -27,7 +27,7 @@ import (
 	"go_template/pkg/routine"
 )
 
-var configFile = flag.String("f", "./conf/template.yaml", "the config file")
+var configFile = flag.String("f", "./config/template.yaml", "the config file")
 
 func main() {
 	flag.Parse()
@@ -44,8 +44,8 @@ func main() {
 	// 初始化系统日志
 	zap.ReplaceGlobals(logger.New(
 		logger.WithFields(zap.String("service", v.ServiceName)),
-		logger.WithLevel(viper.GetString("level")),
-		logger.WithWriter(logger.SetWriter(viper.GetString("path")))))
+		logger.WithLevel(viper.GetString("log.level")),
+		logger.WithWriter(logger.SetWriter(viper.GetString("log.path")))))
 	if err := run(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}

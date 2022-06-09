@@ -1,0 +1,14 @@
+mode: "debug" #gin/gorm run mode,attention:gorm log depends on this and zerolog level
+mysql:
+  user: "root"
+  password: "123456"
+  ip: "127.0.0.1"
+  port: "3306"
+  name: "template"
+  charset: "utf8mb4"
+  max_open_conns: 50
+  max_idle_conns: 10
+  conn_max_lifetime: 500
+log:
+  file_path: "/var/log/dcs/template.log"
+  level: "info"# zerolog level,default debug

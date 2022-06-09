@@ -15,3 +15,5 @@
 # vendor/
 .idea
 go.sum
+config/*.yaml
+out
