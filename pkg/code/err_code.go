@@ -93,3 +93,20 @@ func (e *errCode) WithResult(result interface{}) ErrorCode {
 	ec.ErrResult = result
 	return &ec
 }
+
+func (e *errCode) Equal(v error) bool {
+	for v != nil {
+		u, ok := v.((interface {
+			Unwrap() error
+		}))
+		if !ok {
+			break
+		}
+		v = u.Unwrap()
+	}
+	err, ok := v.(ErrorCode)
+	if !ok {
+		return false
+	}
+	return err.Code() == e.Code() && err.Message() == e.Message()
+}
