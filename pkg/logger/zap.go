@@ -8,16 +8,6 @@ import (
 	"go_template/pkg/logger/console"
 )
 
-const (
-	DEBUG  = "DEBUG"
-	INFO   = "INFO"
-	WARN   = "WARN"
-	ERROR  = "ERROR"
-	DPanic = "DPANIC"
-	PANIC  = "PANIC"
-	FATAL  = "FATAL"
-)
-
 func New(opts ...Option) *zap.Logger {
 	o := &option{
 		level:   zapcore.InfoLevel,
@@ -56,17 +46,9 @@ func newEncoderConfig() zapcore.EncoderConfig {
 }
 
 func newLevel(level string) zapcore.Level {
-	l := zap.InfoLevel
-	if temp, ok := map[string]zapcore.Level{
-		DEBUG:  zap.DebugLevel,
-		INFO:   zap.InfoLevel,
-		WARN:   zap.WarnLevel,
-		ERROR:  zap.ErrorLevel,
-		DPanic: zap.DPanicLevel,
-		PANIC:  zap.PanicLevel,
-		FATAL:  zap.FatalLevel,
-	}[level]; ok {
-		l = temp
+	l, err := zapcore.ParseLevel(level)
+	if err != nil {
+		l = zap.InfoLevel
 	}
 	return l
 }

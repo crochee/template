@@ -3,6 +3,7 @@ package gormx
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"go.uber.org/zap"
@@ -10,7 +11,7 @@ import (
 	"gorm.io/gorm/utils"
 )
 
-func NewLog(l *zap.Logger, cfg logger.Config) logger.Interface {
+func NewLog(l *zap.Logger, debug bool, cfg logger.Config) logger.Interface {
 	var (
 		infoStr      = "%s\n[info] "
 		warnStr      = "%s\n[warn] "
@@ -34,6 +35,7 @@ func NewLog(l *zap.Logger, cfg logger.Config) logger.Interface {
 	return &gormLog{
 		Logger:       l.WithOptions(zap.WithCaller(false)),
 		Config:       cfg,
+		debug:        debug,
 		infoStr:      infoStr,
 		warnStr:      warnStr,
 		errStr:       errStr,
@@ -46,6 +48,7 @@ func NewLog(l *zap.Logger, cfg logger.Config) logger.Interface {
 type gormLog struct {
 	*zap.Logger
 	logger.Config
+	debug                               bool
 	infoStr, warnStr, errStr            string
 	traceStr, traceErrStr, traceWarnStr string
 }
@@ -109,14 +112,28 @@ func (g *gormLog) Trace(_ context.Context, begin time.Time, fc func() (string, i
 		}
 	case g.LogLevel == logger.Info:
 		s, rows := fc()
-		if rows == -1 {
-			g.Logger.Sugar().
-				Infof(g.traceStr, utils.FileWithLineNum(),
-					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
+		if strings.Contains(s, "SELECT") {
+			if g.debug {
+				if rows == -1 {
+					g.Logger.Sugar().
+						Infof(g.traceStr, utils.FileWithLineNum(),
+							float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
+				} else {
+					g.Logger.Sugar().
+						Infof(g.traceStr, utils.FileWithLineNum(),
+							float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
+				}
+			}
 		} else {
-			g.Logger.Sugar().
-				Infof(g.traceStr, utils.FileWithLineNum(),
-					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
+			if rows == -1 {
+				g.Logger.Sugar().
+					Infof(g.traceStr, utils.FileWithLineNum(),
+						float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
+			} else {
+				g.Logger.Sugar().
+					Infof(g.traceStr, utils.FileWithLineNum(),
+						float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
+			}
 		}
 	}
 }
