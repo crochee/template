@@ -96,9 +96,9 @@ func (e *errCode) WithResult(result interface{}) ErrorCode {
 
 func (e *errCode) Equal(v error) bool {
 	for v != nil {
-		u, ok := v.((interface {
+		u, ok := v.(interface {
 			Unwrap() error
-		}))
+		})
 		if !ok {
 			break
 		}
