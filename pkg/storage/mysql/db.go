@@ -139,16 +139,13 @@ func (d *DB) With(ctx context.Context, opts ...Opt) *DB {
 	}
 	c := &DB{DB: d.Session(&gorm.Session{
 		Context: ctx,
-		Logger: gormx.NewLog(l, glogger.Config{
+		Logger: gormx.NewLog(l, o.debug || d.Debug, glogger.Config{
 			SlowThreshold: o.slowThreshold,
 			Colorful:      o.colorful,
-			LogLevel:      o.levelFunc(glogger.Warn, d.Debug),
+			LogLevel:      o.levelFunc(glogger.Info, d.Debug),
 		}),
 	}),
 		Debug: d.Debug,
-	}
-	if !d.Debug {
-		c = setDebug(c, o.debug)
 	}
 	return c
 }
@@ -173,18 +170,4 @@ func noInfoHandle(level glogger.LogLevel, _ bool) glogger.LogLevel {
 		return glogger.Warn
 	}
 	return level
-}
-
-func setDebug(c *DB, debug bool) *DB {
-	if debug {
-		_ = c.Callback().Query().Before("gorm:query").Replace("QueryOpt", changeLogMode)
-	}
-	_ = c.Callback().Create().Before("gorm:create").Replace("CreateOpt", changeLogMode)
-	_ = c.Callback().Delete().Before("gorm:delete").Replace("DeleteOpt", changeLogMode)
-	_ = c.Callback().Update().Before("gorm:update").Replace("UpdateOpt", changeLogMode)
-	return c
-}
-
-func changeLogMode(db *gorm.DB) {
-	db.Logger = db.Logger.LogMode(glogger.Info)
 }
