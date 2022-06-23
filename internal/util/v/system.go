@@ -1,5 +1,5 @@
 package v
 
 const (
-	ServiceName = "devt"
+	ServiceName = "template"
 )

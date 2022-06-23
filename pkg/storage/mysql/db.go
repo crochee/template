@@ -127,6 +127,11 @@ type DB struct {
 	debug bool
 }
 
+func (d *DB) Debug() bool {
+	return d.debug
+
+}
+
 // With options to set orm logger
 func (d *DB) With(ctx context.Context, opts ...Opt) *DB {
 	l := logger.From(ctx)
@@ -140,7 +145,7 @@ func (d *DB) With(ctx context.Context, opts ...Opt) *DB {
 	}
 	return &DB{DB: d.Session(&gorm.Session{
 		Context: ctx,
-		Logger: gormx.NewLog(l, glogger.Config{
+		Logger: gormx.NewLog(l, d.debug, glogger.Config{
 			SlowThreshold: o.slowThreshold,
 			Colorful:      o.colorful,
 			LogLevel:      o.levelFunc(glogger.Warn, d.debug),

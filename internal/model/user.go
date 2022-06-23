@@ -3,7 +3,7 @@ package model
 import "github.com/crochee/devt/pkg/storage/mysql"
 
 type User struct {
-	ID             mysql.PkID `json:"id,string" gorm:"primary_key:id"`
+	mysql.Base
 	AccountID      uint64     `json:"account_id" gorm:"column:account_id;not null;index:idx_account_id_name_primary_deleted,unique;comment:账号ID"`
 	Name           string     `json:"name" gorm:"column:name;type:varchar(255);not null;index:idx_account_id_name_primary_deleted,unique;comment:用户名"`
 	Password       string     `json:"-" gorm:"column:password;type:varchar(50);not null;comment:密码"`

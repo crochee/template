@@ -5,12 +5,14 @@ import "fmt"
 var (
 	// 00~99为服务级别错误码
 
-	ErrInternalServerError = Froze("5000000000", "服务器内部错误")
-	ErrInvalidParam        = Froze("4000000001", "请求参数不正确")
-	ErrNotFound            = Froze("4040000002", "资源不存在")
-	ErrNotAllowMethod      = Froze("4050000003", "不允许此方法")
-	ErrParseContent        = Froze("5000000004", "解析内容失败")
-	ErrCodeUnknown         = Froze("5000000005", "未知错误")
+	ErrInternalServerError = Froze("5000000001", "服务器内部错误")
+	ErrInvalidParam        = Froze("4000000002", "请求参数不正确")
+	ErrNotFound            = Froze("4040000003", "资源不存在")
+	ErrNotAllowMethod      = Froze("4050000004", "不允许此方法")
+	ErrParseContent        = Froze("5000000005", "解析内容失败")
+	ErrForbidden           = Froze("4030000006", "不允许访问")
+	ErrUnauthorized        = Froze("4010000007", "用户未认证")
+	ErrCodeUnknown         = Froze("5000000008", "未知错误")
 )
 
 // AddCode business code to codeMessageBox
@@ -22,6 +24,8 @@ func AddCode(m map[ErrorCode]struct{}) error {
 		ErrNotFound:            {},
 		ErrNotAllowMethod:      {},
 		ErrParseContent:        {},
+		ErrForbidden:           {},
+		ErrUnauthorized:        {},
 		ErrCodeUnknown:         {},
 	} {
 		if err := check(errorCode); err != nil {

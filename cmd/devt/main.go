@@ -41,15 +41,20 @@ func main() {
 	// 初始化系统日志
 	zap.ReplaceGlobals(logger.New(
 		logger.WithFields(zap.String("service", v.ServiceName)),
-		logger.WithLevel(viper.GetString("level")),
-		logger.WithWriter(logger.SetWriter(viper.GetString("path")))))
+		logger.WithLevel(viper.GetString("log.level")),
+		logger.WithWriter(logger.SetWriter(viper.GetString("log.path")))))
 	if err := run(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
 }
 
 func run() error {
-	ctx := context.Background()
+	ctx := logger.With(context.Background(),
+		logger.New(
+			logger.WithFields(zap.String("service", v.ServiceName)),
+			logger.WithLevel(viper.GetString("log.level")),
+			logger.WithWriter(logger.SetWriter(viper.GetString("log.path")))),
+	)
 	g := routine.NewGroup(ctx)
 	srv := &http.Server{
 		Addr:    ":8080",

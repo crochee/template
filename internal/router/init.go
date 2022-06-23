@@ -2,11 +2,7 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
-	"github.com/spf13/viper"
-	"go.uber.org/zap"
 
-	"github.com/crochee/devt/internal/util/v"
-	"github.com/crochee/devt/pkg/logger"
 	"github.com/crochee/devt/pkg/middleware"
 )
 
@@ -17,11 +13,7 @@ func New() *gin.Engine {
 
 	// add middleware
 	router.Use(
-		middleware.RequestLogger(
-			logger.New(
-				logger.WithFields(zap.String("service", v.ServiceName)),
-				logger.WithLevel(viper.GetString("level")),
-				logger.WithWriter(logger.SetWriter(viper.GetString("path"))))),
+		middleware.RequestLogger,
 		middleware.Log,
 		middleware.Recovery,
 	)
