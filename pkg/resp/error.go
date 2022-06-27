@@ -17,9 +17,9 @@ type response struct {
 // Error gin Response with error
 func Error(ctx *gin.Context, err error) {
 	for err != nil {
-		u, ok := err.((interface {
+		u, ok := err.(interface {
 			Unwrap() error
-		}))
+		})
 		if !ok {
 			break
 		}
