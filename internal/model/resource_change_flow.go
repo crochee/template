@@ -15,10 +15,6 @@ type DcsResourceChangeFlow struct {
 	Reason         string `json:"reason" gorm:"comment:资源包开通失败原因"`
 }
 
-func (DcsResourceChangeFlow) TableName() string {
-	return "dcs_resource_change_flow"
-}
-
 type ChangeFlowCreateOpts struct {
 	ResourceID     string
 	OrderType      string

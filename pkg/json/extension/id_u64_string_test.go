@@ -8,6 +8,7 @@ import (
 )
 
 func Test_Encode(t *testing.T) {
+	Register()
 	type TestString struct {
 		ID     uint64 `json:"id,string"`
 		Value  string `json:"value"`
@@ -51,6 +52,7 @@ func Test_Encode(t *testing.T) {
 }
 
 func Test_Decode(t *testing.T) {
+	Register()
 	type TestString struct {
 		ID     uint64 `json:"id,string"`
 		Value  string `json:"value"`

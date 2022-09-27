@@ -3,47 +3,58 @@ package client
 import (
 	"bytes"
 	"context"
+	"io"
 	"net/http"
+	"strconv"
+	"strings"
 
-	"moul.io/http2curl"
+	"github.com/pkg/errors"
 
-	"go_template/pkg/logger"
+	"go_template/pkg/code"
+	"go_template/pkg/json"
+	"go_template/pkg/utils/v"
 )
 
-type Request interface {
-	Build(ctx context.Context, method, url string, body []byte, headers http.Header) (*http.Request, error)
+type Requester interface {
+	Build(ctx context.Context, method, url string, body interface{}, headers http.Header) (*http.Request, error)
 }
 
-type originalRequest struct{}
+type OriginalRequest struct{}
 
-func (o originalRequest) Build(ctx context.Context, method, url string, body []byte, headers http.Header) (*http.Request, error) {
-	req, err := http.NewRequestWithContext(ctx, method, url, bytes.NewReader(body))
+func (o OriginalRequest) Build(ctx context.Context, method, url string, body interface{}, headers http.Header) (*http.Request, error) {
+	var (
+		reader     io.Reader
+		objectData bool
+	)
+	if body != nil {
+		switch data := body.(type) {
+		case string:
+			reader = strings.NewReader(data)
+		case []byte:
+			reader = bytes.NewReader(data)
+		case io.Reader:
+			reader = data
+		default:
+			content, err := json.Marshal(data)
+			if err != nil {
+				return nil, errors.WithStack(code.ErrInternalServerError.WithResult(err.Error()))
+			}
+			objectData = true
+			reader = bytes.NewReader(content)
+		}
+	}
+	req, err := http.NewRequestWithContext(ctx, method, url, reader)
 	if err != nil {
 		return nil, err
 	}
 	for key, values := range headers {
-		for _, v := range values {
-			req.Header.Set(key, v)
+		for _, value := range values {
+			req.Header.Set(key, value)
 		}
 	}
-	return req, nil
-}
-
-type curlRequest struct {
-	originalRequest
-}
-
-func (c curlRequest) Build(ctx context.Context, method, url string, body []byte, headers http.Header) (*http.Request, error) {
-	req, err := c.originalRequest.Build(ctx, method, url, body, headers)
-	if err != nil {
-		return nil, err
+	if objectData {
+		req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	}
-	// 打印curl语句，便于问题分析和定位
-	var curl *http2curl.CurlCommand
-	if curl, err = http2curl.GetCurlCommand(req); err == nil {
-		logger.From(ctx).Debug(curl.String())
-	} else {
-		logger.From(ctx).Error(err.Error())
-	}
+	req.Header.Set("Content-Length", strconv.FormatInt(req.ContentLength, v.Decimal))
 	return req, nil
 }

@@ -1,11 +1,8 @@
 package code
 
-import "encoding/json"
-
 type ErrorCode interface {
 	error
-	json.Marshaler
-	json.Unmarshaler
+	ServiceName() string
 	StatusCode() int
 	Code() string
 	Message() string
@@ -14,5 +11,5 @@ type ErrorCode interface {
 	WithCode(string) ErrorCode
 	WithMessage(string) ErrorCode
 	WithResult(interface{}) ErrorCode
-	Equal(v error) bool
+	Is(error) bool
 }

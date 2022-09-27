@@ -1,4 +1,6 @@
 mode: "debug" #gin/gorm run mode,attention:gorm log depends on this and zerolog level
+ifp: # dcs的ifp接口
+  url: "http://172.31.254.3:30086"
 mysql:
   user: "root"
   password: "123456"
