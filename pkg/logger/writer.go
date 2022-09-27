@@ -2,29 +2,38 @@ package logger
 
 import (
 	"io"
-	"os"
 	"path/filepath"
+	"sync"
 
+	"github.com/mattn/go-colorable"
+	"github.com/spf13/viper"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 var (
-	LogSizeM   = 20
-	MaxZip     = 50
-	MaxLogDays = 30
+	loggerWriter     io.WriteCloser
+	loggerWriterOnce sync.Once
 )
 
 // SetWriter return a io.Writer
-func SetWriter(path string) io.Writer {
-	if path == "" {
-		return os.Stdout
+func SetWriter(console bool) io.Writer {
+	var writerList []io.Writer
+	path := viper.GetString("log.path")
+	if console {
+		writerList = append(writerList, colorable.NewColorableStdout())
+		if path == "" {
+			return io.MultiWriter(writerList...)
+		}
 	}
-	return &lumberjack.Logger{
-		Filename:   filepath.Clean(path),
-		MaxSize:    LogSizeM,   // 单个日志文件最大MaxSize*M大小
-		MaxAge:     MaxLogDays, // days
-		MaxBackups: MaxZip,     // 备份数量
-		Compress:   false,      // 不压缩
-		LocalTime:  true,       // 备份名采用本地时间
-	}
+	loggerWriterOnce.Do(func() {
+		loggerWriter = &lumberjack.Logger{
+			Filename:   filepath.Clean(path),
+			MaxBackups: 30,  // files
+			MaxSize:    500, // megabytes
+			MaxAge:     30,  // days
+			Compress:   true,
+		}
+	})
+	writerList = append(writerList, loggerWriter)
+	return io.MultiWriter(writerList...)
 }

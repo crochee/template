@@ -9,6 +9,7 @@ import (
 )
 
 func Test_TimeUTCToShanghaiCodecEncode(t *testing.T) {
+	Register()
 	type TestString struct {
 		T1 time.Time `json:"t_1"`
 		T2 time.Time `json:"t_2,tzsh"`
@@ -52,6 +53,7 @@ func Test_TimeUTCToShanghaiCodecEncode(t *testing.T) {
 }
 
 func Test_TimeUTCToShanghaiCodecDecode(t *testing.T) {
+	Register()
 	type TestString struct {
 		T1 time.Time `json:"t_1"`
 		T2 time.Time `json:"t_2,tzsh"`

@@ -8,10 +8,13 @@ require (
 	github.com/go-playground/locales v0.14.0
 	github.com/go-playground/universal-translator v0.18.0
 	github.com/go-playground/validator/v10 v10.11.0
+	github.com/golang/mock v1.3.1
 	github.com/json-iterator/go v1.1.12
+	github.com/mattn/go-colorable v0.0.9
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/pkg/errors v0.9.1
 	github.com/pressly/goose v2.7.0+incompatible
+	github.com/satori/go.uuid v1.2.0
 	github.com/sony/sonyflake v1.0.0
 	github.com/spf13/viper v1.7.1
 	github.com/streadway/amqp v1.0.0

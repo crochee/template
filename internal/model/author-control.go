@@ -18,10 +18,6 @@ type DcsAuthorControl struct {
 	Deleted mysql.Deleted `json:"deleted" gorm:"not null;index:idx_account_id_deleted,unique;comment:软删除记录id"`
 }
 
-func (DcsAuthorControl) TableName() string {
-	return "dcs_author_control"
-}
-
 type AuthorControlCreateOpts struct {
 	AccountID     string
 	AuthorControl uint8

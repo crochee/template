@@ -17,40 +17,120 @@ import (
 	"go_template/pkg/logger/gormx"
 )
 
-type Option struct {
-	Debug bool
+type option struct {
+	debug bool
 
-	MaxOpenConn int
-	MaxIdleConn int
+	maxOpenConn int
+	maxIdleConn int
 
-	User     string
-	Password string
-	IP       string
-	Port     string
-	Database string
-	Charset  string
+	user     string
+	password string
+	ip       string
+	port     string
+	database string
+	charset  string
 
-	Timeout         time.Duration
-	ReadTimeout     time.Duration
-	WriteTimeout    time.Duration
-	ConnMaxLifetime time.Duration
+	timeout         time.Duration
+	readTimeout     time.Duration
+	writeTimeout    time.Duration
+	connMaxLifetime time.Duration
+}
+
+type Option func(*option)
+
+func WithDBDebug(debug bool) Option {
+	return func(o *option) {
+		o.debug = debug
+	}
+}
+
+func WithMaxOpenConn(maxOpenConn int) Option {
+	return func(o *option) {
+		o.maxOpenConn = maxOpenConn
+	}
+}
+
+func WithMaxIdleConn(maxIdleConn int) Option {
+	return func(o *option) {
+		o.maxIdleConn = maxIdleConn
+	}
+}
+
+func WithUser(user string) Option {
+	return func(o *option) {
+		o.user = user
+	}
+}
+
+func WithPassword(password string) Option {
+	return func(o *option) {
+		o.password = password
+	}
+}
+
+func WithIP(ip string) Option {
+	return func(o *option) {
+		o.ip = ip
+	}
+}
+
+func WithPort(port string) Option {
+	return func(o *option) {
+		o.port = port
+	}
+}
+
+func WithDatabase(db string) Option {
+	return func(o *option) {
+		o.database = db
+	}
+}
+
+func WithCharset(charset string) Option {
+	return func(o *option) {
+		o.charset = charset
+	}
+}
+
+func WithTimeout(timeout time.Duration) Option {
+	return func(o *option) {
+		o.timeout = timeout
+	}
+}
+
+func WithReadTimeout(readTimeout time.Duration) Option {
+	return func(o *option) {
+		o.readTimeout = readTimeout
+	}
+}
+
+func WithWriteTimeout(writeTimeout time.Duration) Option {
+	return func(o *option) {
+		o.writeTimeout = writeTimeout
+	}
+}
+
+func WithMaxLifetime(connMaxLifetime time.Duration) Option {
+	return func(o *option) {
+		o.connMaxLifetime = connMaxLifetime
+	}
 }
 
 // New init DB
-func New(ctx context.Context, opts ...func(*Option)) (*DB, error) {
-	o := &Option{
-		Debug:       true,
-		MaxOpenConn: 100,
-		MaxIdleConn: 80,
-		IP:          "127.0.0.1",
-		Port:        "3306",
-		Charset:     "utf8mb4",
+func New(ctx context.Context, opts ...Option) (*DB, error) {
+	o := &option{
+		debug:       true,
+		maxOpenConn: 100,
+		maxIdleConn: 80,
+		ip:          "127.0.0.1",
+		port:        "3306",
+		charset:     "utf8mb4",
 	}
 	for _, f := range opts {
 		f(o)
 	}
-	client, err := gorm.Open(mysql.Open(Dsn(o.User, o.Password, o.IP, o.Port,
-		o.Database, o.Charset, o.Timeout, o.ReadTimeout, o.WriteTimeout)),
+	client, err := gorm.Open(mysql.Open(Dsn(o.user, o.password, o.ip, o.port,
+		o.database, o.charset, o.timeout, o.readTimeout, o.writeTimeout)),
 		&gorm.Config{
 			SkipDefaultTransaction: false,
 			NamingStrategy: schema.NamingStrategy{
@@ -67,7 +147,7 @@ func New(ctx context.Context, opts ...func(*Option)) (*DB, error) {
 		return nil, err
 	}
 	session := &gorm.Session{Context: ctx}
-	if o.Debug { // 是否显示sql语句
+	if o.debug { // 是否显示sql语句
 		session.Logger = client.Logger.LogMode(glogger.Info)
 	}
 	client = client.Session(session)
@@ -77,11 +157,11 @@ func New(ctx context.Context, opts ...func(*Option)) (*DB, error) {
 		return nil, err
 	}
 	// 连接池配置
-	sqlDB.SetMaxOpenConns(o.MaxOpenConn)        // 默认值0，无限制
-	sqlDB.SetMaxIdleConns(o.MaxIdleConn)        // 默认值2
-	sqlDB.SetConnMaxLifetime(o.ConnMaxLifetime) // 默认值0，永不过期
+	sqlDB.SetMaxOpenConns(o.maxOpenConn)        // 默认值0，无限制
+	sqlDB.SetMaxIdleConns(o.maxIdleConn)        // 默认值2
+	sqlDB.SetConnMaxLifetime(o.connMaxLifetime) // 默认值0，永不过期
 
-	c := &DB{DB: client, Debug: o.Debug}
+	c := &DB{DB: client, Debug: o.debug}
 	runtime.SetFinalizer(c, closeClient)
 	return c, nil
 }

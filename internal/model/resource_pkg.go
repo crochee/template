@@ -25,10 +25,6 @@ type DcsResourcePkg struct {
 	Deleted mysql.Deleted `json:"deleted" gorm:"not null;index:idx_resource_id_deleted,unique;comment:软删除记录id"`
 }
 
-func (DcsResourcePkg) TableName() string {
-	return "dcs_resource_pkg"
-}
-
 const (
 	ChargeByVolume = 2
 

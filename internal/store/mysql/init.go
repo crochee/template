@@ -17,18 +17,18 @@ var (
 
 // Init init database
 func Init(ctx context.Context) (err error) {
-	dbClient, err = mysql.New(ctx, func(opt *mysql.Option) {
-		opt.Debug = viper.GetString("mode") != gin.ReleaseMode
-		opt.User = viper.GetString("mysql.user")
-		opt.Password = viper.GetString("mysql.password")
-		opt.IP = viper.GetString("mysql.ip")
-		opt.Port = viper.GetString("mysql.port")
-		opt.Database = viper.GetString("mysql.name")
-		opt.Charset = viper.GetString("mysql.charset")
-		opt.MaxOpenConn = viper.GetInt("mysql.max_open_conns")
-		opt.MaxIdleConn = viper.GetInt("mysql.max_idle_conns")
-		opt.ConnMaxLifetime = time.Duration(viper.GetInt("mysql.conn_max_lifetime")) * time.Second
-	})
+	dbClient, err = mysql.New(ctx,
+		mysql.WithDBDebug(viper.GetString("mode") != gin.ReleaseMode),
+		mysql.WithUser(viper.GetString("mysql.user")),
+		mysql.WithPassword(viper.GetString("mysql.password")),
+		mysql.WithIP(viper.GetString("mysql.ip")),
+		mysql.WithPort(viper.GetString("mysql.port")),
+		mysql.WithDatabase(viper.GetString("mysql.name")),
+		mysql.WithCharset(viper.GetString("mysql.charset")),
+		mysql.WithMaxOpenConn(viper.GetInt("mysql.max_open_conns")),
+		mysql.WithMaxIdleConn(viper.GetInt("mysql.max_idle_conns")),
+		mysql.WithMaxLifetime(time.Duration(viper.GetInt("mysql.conn_max_lifetime"))*time.Second),
+	)
 	return
 }
 
