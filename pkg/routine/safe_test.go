@@ -60,7 +60,7 @@ func TestNewPool(t *testing.T) {
 				p = NewPool(context.Background())
 			}
 			for _, f := range data.input {
-				p.Go(f)
+				p.Go(context.Background(), f)
 			}
 			p.Wait()
 		})

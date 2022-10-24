@@ -23,8 +23,8 @@ type RESTClient interface {
 	Param(paramName, value string) RESTClient
 	SetHeader(key string, values ...string) RESTClient
 	Body(obj interface{}) RESTClient
-	Do(ctx context.Context, result interface{}, opts ...OptionFunc) error
-	DoNop(ctx context.Context, opts ...OptionFunc) error
+	Do(ctx context.Context, result interface{}, opts ...Func) error
+	DoNop(ctx context.Context, opts ...Func) error
 }
 
 // NameMayNotBe specifies strings that cannot be used as names specified as path segments (like the REST API or etcd store)
@@ -201,7 +201,7 @@ func (r *restfulClient) Body(body interface{}) RESTClient {
 	return r
 }
 
-func (r *restfulClient) Do(ctx context.Context, result interface{}, opts ...OptionFunc) error {
+func (r *restfulClient) Do(ctx context.Context, result interface{}, opts ...Func) error {
 	if r.err != nil {
 		return r.err
 	}
@@ -218,7 +218,7 @@ func (r *restfulClient) Do(ctx context.Context, result interface{}, opts ...Opti
 	return r.c.Response().Parse(resp, result, opts...)
 }
 
-func (r restfulClient) DoNop(ctx context.Context, opts ...OptionFunc) error {
+func (r restfulClient) DoNop(ctx context.Context, opts ...Func) error {
 	if r.err != nil {
 		return r.err
 	}

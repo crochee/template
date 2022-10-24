@@ -2,9 +2,8 @@ package client
 
 import (
 	"fmt"
+	"mime"
 	"net/http"
-	"reflect"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -13,52 +12,27 @@ import (
 )
 
 type Response interface {
-	Parse(resp *http.Response, result interface{}, opts ...OptionFunc) error
+	Parse(resp *http.Response, result interface{}, opts ...Func) error
 }
 
-type OptionFunc func(*Option)
-
-type Option struct {
-	ExpectStatusCode int
-	Escape           func(response *http.Response) code.ErrorCode
+type ResponseHandler struct {
 }
 
-func ExpectOK(status int) OptionFunc {
-	return func(o *Option) { o.ExpectStatusCode = status }
-}
-
-func ErrorParser(f func(*http.Response) code.ErrorCode) OptionFunc {
-	return func(o *Option) { o.Escape = f }
-}
-
-type originalResponse struct {
-	opts *Option
-}
-
-func (o *originalResponse) Parse(resp *http.Response, result interface{}, opts ...OptionFunc) error {
-	if resp.StatusCode == http.StatusNoContent {
-		return nil
+func (o ResponseHandler) Parse(resp *http.Response, result interface{}, opts ...Func) error {
+	if len(opts) == 0 {
+		opts = append(opts, DefaultFunc...)
 	}
-	for _, f := range opts {
-		f(o.opts)
-	}
-	if resp.StatusCode != o.opts.ExpectStatusCode {
-		if contentType := resp.Header.Get("Content-Type"); !strings.Contains(contentType, "application/json") {
-			return errors.WithStack(code.ErrParseContent.WithResult(
-				fmt.Sprintf("can't parse content-type %s", contentType)))
+	for _, opt := range opts {
+		if err := opt(resp); err != nil {
+			return err
 		}
-		return o.opts.Escape(resp).WithStatusCode(resp.StatusCode)
 	}
-	rv := reflect.ValueOf(result)
-	if rv.IsNil() {
+	if resp.StatusCode == http.StatusNoContent || result == nil {
 		return nil
 	}
-	if rv.Kind() != reflect.Ptr {
-		return code.ErrInternalServerError.WithResult("result is not a pointer")
-	}
-	if contentType := resp.Header.Get("Content-Type"); !strings.Contains(contentType, "application/json") {
-		return errors.WithStack(code.ErrParseContent.WithResult(
-			fmt.Sprintf("can't parse content-type %s", contentType)))
+
+	if err := o.checkContentType(resp.Header.Get("Content-Type")); err != nil {
+		return err
 	}
 	if err := json.DecodeUseNumber(resp.Body, result); err != nil {
 		return code.ErrParseContent.WithResult(err)
@@ -66,16 +40,14 @@ func (o *originalResponse) Parse(resp *http.Response, result interface{}, opts .
 	return nil
 }
 
-// NewDecoder create a new Response
-func NewDecoder(opts ...OptionFunc) Response {
-	o := &originalResponse{
-		opts: &Option{
-			ExpectStatusCode: http.StatusOK,
-			Escape:           code.From,
-		},
+func (o ResponseHandler) checkContentType(contentType string) error {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return errors.WithStack(code.ErrInternalServerError.WithResult(err.Error()))
 	}
-	for _, f := range opts {
-		f(o.opts)
+	if mediaType != "application/json" {
+		return errors.WithStack(code.ErrInternalServerError.WithMessage(
+			fmt.Sprintf("can't parse content-type %s", contentType)))
 	}
-	return o
+	return nil
 }

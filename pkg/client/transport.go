@@ -41,7 +41,7 @@ var DefaultTransport Transport = &Transporter{
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	},
-	resp: NewDecoder(),
+	resp: ResponseHandler{},
 }
 
 type Transporter struct {
