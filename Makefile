@@ -1,5 +1,24 @@
 OUT_DIR = ./out
 PROJECT = go_template
+TARGET_GOARCH=$(ARCH)
+
+# 获取宿主机CPU架构
+ifeq ($(TARGET_GOARCH),)
+sys=$(shell arch)
+ifeq ($(sys),x86_64)
+TARGET_GOARCH=amd64
+else ifeq ($(sys),AMD64)
+TARGET_GOARCH=amd64
+else ifeq ($(sys),x64)
+TARGET_GOARCH=amd64
+else ifeq ($(sys),aarch64)
+TARGET_GOARCH=arm
+else ifeq ($(sys),arm64)
+TARGET_GOARCH=arm
+else
+TARGET_GOARCH=amd64
+endif
+endif
 
 .PHONY: all
 all: clean build
@@ -16,8 +35,8 @@ fmt:
 
 .PHONY: build
 build:
-	@make dep &&mkdir -p $(OUT_DIR) &&GOOS=linux CGO_ENABLED=0 GOARCH=amd64 go build -tags jsoniter -o $(OUT_DIR)/$(PROJECT) ./cmd/$(PROJECT) && \
-	GOOS=linux CGO_ENABLED=0 GOARCH=amd64 go build -o $(OUT_DIR)/goose ./cmd/goose
+	@make dep &&mkdir -p $(OUT_DIR) &&GOOS=linux CGO_ENABLED=0 GOARCH=$(TARGET_GOARCH) go build -tags jsoniter -o $(OUT_DIR)/$(PROJECT) ./cmd/$(PROJECT) && \
+	GOOS=linux CGO_ENABLED=0 GOARCH=$(TARGET_GOARCH) go build -o $(OUT_DIR)/goose ./cmd/goose
 
 .PHONY: copy_migration
 copy_migration:
@@ -25,7 +44,7 @@ copy_migration:
 
 .PHONY: build_goose
 build_goose:
-	@mkdir -p $(OUT_DIR) && CGO_ENABLED=0 GOARCH=amd64 go build -o $(OUT_DIR)/goose ./cmd/goose
+	@mkdir -p $(OUT_DIR) && CGO_ENABLED=0 GOARCH=$(TARGET_GOARCH) go build -o $(OUT_DIR)/goose ./cmd/goose
 
 .PHONY: migrate
 migrate: build_goose copy_migration
@@ -33,7 +52,7 @@ migrate: build_goose copy_migration
 
 .PHONY: run
 run: dep fmt
-	@CGO_ENABLED=0 GOARCH=amd64 go run -tags jsoniter ./cmd/$(PROJECT)
+	@CGO_ENABLED=0 GOARCH=$(TARGET_GOARCH) go run -tags jsoniter ./cmd/$(PROJECT)
 
 .PHONY: clean
 clean:
