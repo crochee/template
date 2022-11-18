@@ -12,9 +12,9 @@ TARGET_GOARCH=amd64
 else ifeq ($(sys),x64)
 TARGET_GOARCH=amd64
 else ifeq ($(sys),aarch64)
-TARGET_GOARCH=arm
+TARGET_GOARCH=arm64
 else ifeq ($(sys),arm64)
-TARGET_GOARCH=arm
+TARGET_GOARCH=arm64
 else
 TARGET_GOARCH=amd64
 endif
