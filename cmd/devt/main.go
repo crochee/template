@@ -10,10 +10,12 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	"go.uber.org/multierr"
 	"go.uber.org/zap"
 
 	"github.com/crochee/devt/config"
@@ -42,7 +44,7 @@ func main() {
 	zap.ReplaceGlobals(logger.New(
 		logger.WithFields(zap.String("service", v.ServiceName)),
 		logger.WithLevel(viper.GetString("log.level")),
-		logger.WithWriter(logger.SetWriter(viper.GetString("log.path")))))
+		logger.WithWriter(logger.SetWriter(viper.GetBool("log.console")))))
 	if err := run(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
@@ -53,7 +55,7 @@ func run() error {
 		logger.New(
 			logger.WithFields(zap.String("service", v.ServiceName)),
 			logger.WithLevel(viper.GetString("log.level")),
-			logger.WithWriter(logger.SetWriter(viper.GetString("log.path")))),
+			logger.WithWriter(logger.SetWriter(viper.GetBool("log.console")))),
 	)
 	g := routine.NewGroup(ctx)
 	srv := &http.Server{
@@ -88,10 +90,17 @@ func startAction(ctx context.Context, srv *http.Server) error {
 func shutdownAction(ctx context.Context, srv *http.Server) error {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	var err error
 	select {
 	case <-ctx.Done():
+		err = ctx.Err()
 	case <-quit:
 	}
-	zap.L().Info("shutting down server...")
-	return srv.Shutdown(ctx)
+	logger.From(ctx).Info("shutting down server...")
+
+	newCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+	err = multierr.Append(err, srv.Shutdown(newCtx))
+	logger.From(ctx).Info("Server exiting")
+	return err
 }

@@ -4,8 +4,10 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 
 	"github.com/crochee/devt/pkg/code"
+	"github.com/crochee/devt/pkg/logger"
 )
 
 type response struct {
@@ -15,7 +17,8 @@ type response struct {
 }
 
 // Error gin Response with error
-func Error(ctx *gin.Context, err error) {
+func Error(c *gin.Context, err error) {
+	logger.From(c.Request.Context()).Error("response failed", zap.Error(err))
 	for err != nil {
 		u, ok := err.(interface {
 			Unwrap() error
@@ -27,22 +30,22 @@ func Error(ctx *gin.Context, err error) {
 	}
 	e, ok := err.(code.ErrorCode)
 	if !ok {
-		ctx.AbortWithStatusJSON(code.ErrCodeUnknown.StatusCode(), &response{
-			Code:    code.ErrCodeUnknown.Code(),
+		c.AbortWithStatusJSON(code.ErrCodeUnknown.StatusCode(), &response{
+			Code:    fmt.Sprintf("%s.%3d%s", code.ErrCodeUnknown.ServiceName(), code.ErrCodeUnknown.StatusCode(), code.ErrCodeUnknown.Code()),
 			Message: code.ErrCodeUnknown.Message(),
-			Result:  fmt.Sprintf("%v %v", code.ErrCodeUnknown.Result(), err),
+			Result:  fmt.Sprintf("%v %e", code.ErrCodeUnknown.Result(), err),
 		})
 		return
 	}
-	ctx.AbortWithStatusJSON(e.StatusCode(), &response{
-		Code:    e.Code(),
+	c.AbortWithStatusJSON(e.StatusCode(), &response{
+		Code:    fmt.Sprintf("%s.%3d%s", e.ServiceName(), e.StatusCode(), e.Code()),
 		Message: e.Message(),
 		Result:  e.Result(),
 	})
 }
 
 // ErrorParam gin response with invalid parameter tip
-func ErrorParam(ctx *gin.Context, err error) {
-	Error(ctx,
-		code.ErrInvalidParam.WithResult(err))
+func ErrorParam(c *gin.Context, err error) {
+	Error(c,
+		code.ErrInvalidParam.WithResult(err.Error()))
 }

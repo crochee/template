@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"runtime/debug"
 	"sync"
+
+	"go.uber.org/multierr"
 )
 
 type ErrGroup struct {
@@ -31,7 +33,7 @@ func (e *ErrGroup) Go(goroutine func(context.Context) error) {
 		var err error
 		defer func() {
 			if r := recover(); r != nil {
-				err = fmt.Errorf("%v.Stack:%s", r, debug.Stack())
+				err = multierr.Append(err, fmt.Errorf("%v.Stack:%s", r, debug.Stack()))
 			}
 			if err != nil {
 				e.errOnce.Do(func() {

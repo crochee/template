@@ -1,58 +1,53 @@
 package client
 
 import (
+	"fmt"
+	"mime"
 	"net/http"
 
-	jsoniter "github.com/json-iterator/go"
+	"github.com/pkg/errors"
 
 	"github.com/crochee/devt/pkg/code"
+	"github.com/crochee/devt/pkg/json"
 )
 
-type RespOpt func(*responseOption)
-
-type responseOption struct {
-	expectStatusCode int
-	escape           func(response *http.Response) code.ErrorCode
-}
-
 type Response interface {
-	Unmarshal(resp *http.Response, result interface{}, opts ...RespOpt) error
+	Parse(resp *http.Response, result interface{}, opts ...Func) error
 }
 
-type originalResponse struct {
-	opts *responseOption
+type ResponseHandler struct {
 }
 
-func (o *originalResponse) Unmarshal(resp *http.Response, result interface{}, opts ...RespOpt) error {
-	options := *o.opts
-	for _, f := range opts {
-		f(&options)
+func (o ResponseHandler) Parse(resp *http.Response, result interface{}, opts ...Func) error {
+	if len(opts) == 0 {
+		opts = append(opts, DefaultFunc...)
 	}
-	if resp.StatusCode != options.expectStatusCode {
-		return options.escape(resp)
+	for _, opt := range opts {
+		if err := opt(resp); err != nil {
+			return err
+		}
 	}
-
-	if result == nil || resp.StatusCode == http.StatusNoContent {
+	if resp.StatusCode == http.StatusNoContent || result == nil {
 		return nil
 	}
-	decoder := jsoniter.ConfigCompatibleWithStandardLibrary.NewDecoder(resp.Body)
-	decoder.UseNumber()
-	if err := decoder.Decode(result); err != nil {
+
+	if err := o.checkContentType(resp.Header.Get("Content-Type")); err != nil {
+		return err
+	}
+	if err := json.DecodeUseNumber(resp.Body, result); err != nil {
 		return code.ErrParseContent.WithResult(err)
 	}
 	return nil
 }
 
-// NewDecoder create a new Response
-func NewDecoder(opts ...RespOpt) Response {
-	o := &originalResponse{
-		opts: &responseOption{
-			expectStatusCode: http.StatusOK,
-			escape:           code.From,
-		},
+func (o ResponseHandler) checkContentType(contentType string) error {
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return errors.WithStack(code.ErrInternalServerError.WithResult(err.Error()))
 	}
-	for _, f := range opts {
-		f(o.opts)
+	if mediaType != "application/json" {
+		return errors.WithStack(code.ErrInternalServerError.WithMessage(
+			fmt.Sprintf("can't parse content-type %s", contentType)))
 	}
-	return o
+	return nil
 }

@@ -1,14 +1,13 @@
 package mysql
 
 import (
-	"database/sql/driver"
-	"fmt"
 	"strconv"
 	"time"
 
 	"gorm.io/gorm"
 
 	"github.com/crochee/devt/pkg/idx"
+	"github.com/crochee/devt/pkg/utils/v"
 )
 
 type Time struct {
@@ -17,39 +16,45 @@ type Time struct {
 	DeletedAt DeletedAt `json:"-" gorm:"column:deleted_at;index;comment:删除时间"`
 }
 
-type PrimaryKeyID string
-
-// Scan implements the Scanner interface.
-func (p *PrimaryKeyID) Scan(value interface{}) error {
-	v, ok := value.(uint64)
-	if !ok {
-		return fmt.Errorf("%v isn't u64", value)
-	}
-	*p = PrimaryKeyID(strconv.FormatUint(v, 10))
-	return nil
-}
-
-// Value implements the driver Valuer interface.
-func (p *PrimaryKeyID) Value() (driver.Value, error) {
-	return strconv.ParseUint(string(*p), 10, 64)
-}
-
 type Base struct {
-	ID PrimaryKeyID `json:"id,string" gorm:"primary_key:id"`
+	ID uint64 `json:"id,string" gorm:"primary_key:id"`
 	Time
 }
 
+type AccountUser struct {
+	Base
+	UserId    string `gorm:"column:user_id;type:varchar(120);comment:用户ID" json:"user_id"`
+	AccountId string `gorm:"column:account_id;type:varchar(120);comment:ACCOUNT ID" json:"account_id"`
+}
+
+type ProjectAndOrganization struct {
+	AccountUser
+	OrganizationId string `gorm:"column:organization_id;type:varchar(120);comment:组织机构ID" json:"organization_id"`
+	ProjectId      string `gorm:"column:project_id;type:varchar(120);comment:项目ID" json:"project_id"`
+}
+
 func (b *Base) BeforeCreate(db *gorm.DB) error {
-	if len(b.ID) == 0 {
+	if b.ID == 0 {
 		snowID, err := idx.NextID()
 		if err != nil {
 			return err
 		}
-		b.ID = PrimaryKeyID(strconv.FormatUint(snowID, 10))
+		b.ID = snowID
 	}
 	return nil
 }
 
 func (b *Base) PK() string {
-	return string(b.ID)
+	return strconv.FormatUint(b.ID, v.Decimal)
+}
+
+func (b *Base) WithPK(id string) {
+	if id == "" {
+		return
+	}
+	parseUint, err := strconv.ParseUint(id, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	b.ID = parseUint
 }

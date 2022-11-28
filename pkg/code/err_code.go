@@ -4,109 +4,150 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
-	jsoniter "github.com/json-iterator/go"
+	"github.com/crochee/devt/pkg/json"
 )
 
 // From parse the ErrorCode from the http.Response
 func From(response *http.Response) ErrorCode {
-	decoder := jsoniter.ConfigCompatibleWithStandardLibrary.NewDecoder(response.Body)
-	decoder.UseNumber()
-	var result errCode
-	if err := decoder.Decode(&result); err != nil {
-		return ErrParseContent.WithResult(err)
+	var result struct {
+		Code    string      `json:"code"`
+		Message string      `json:"message"`
+		Result  interface{} `json:"result"`
 	}
-	return &result
+	if err := json.DecodeUseNumber(response.Body, &result); err != nil {
+		return ErrParseContent.WithResult(err.Error())
+	}
+	return Froze(result.Code, result.Message).WithResult(result.Result)
 }
 
 // Froze defines ErrorCode
 func Froze(code, message string) ErrorCode {
-	return &errCode{
-		ErrCode:    code,
-		ErrMessage: message,
-	}
+	return (&errCode{}).Froze(code, message, nil)
 }
 
-// ErrorCode length
-const (
-	codeLength       = 10
-	statusCodeLength = 3
-)
-
 type errCode struct {
-	// 3(http)+3(service)+4(error)
-	ErrCode    string      `json:"code" binding:"required,len=10"`
-	ErrMessage string      `json:"message"`
-	ErrResult  interface{} `json:"result"`
+	serviceName    string
+	httpStatusCode int
+	// 3(service)+4(error)
+	code    string
+	message string
+	result  interface{}
 }
 
 func (e *errCode) Error() string {
-	return fmt.Sprintf("code:%s,message:%s,result:%v",
-		e.ErrCode, e.ErrMessage, e.ErrResult)
+	return fmt.Sprintf("service_name:%s,http_status_code:%d,code:%s,message:%s,result:%v",
+		e.serviceName, e.httpStatusCode, e.code, e.message, e.result)
 }
 
-func (e *errCode) MarshalJSON() ([]byte, error) {
-	return jsoniter.ConfigCompatibleWithStandardLibrary.Marshal(e)
-}
-
-func (e *errCode) UnmarshalJSON(bytes []byte) error {
-	return jsoniter.ConfigCompatibleWithStandardLibrary.Unmarshal(bytes, e)
+func (e *errCode) ServiceName() string {
+	return e.serviceName
 }
 
 func (e *errCode) StatusCode() int {
-	statusCode, _ := strconv.Atoi(e.ErrCode[:statusCodeLength])
-	return statusCode
+	return e.httpStatusCode
 }
 
 func (e *errCode) Code() string {
-	return e.ErrCode
+	return e.code
 }
 
 func (e *errCode) Message() string {
-	return e.ErrMessage
+	return e.message
 }
 
 func (e *errCode) Result() interface{} {
-	return e.ErrResult
+	return e.result
 }
 
 func (e *errCode) WithStatusCode(statusCode int) ErrorCode {
 	ec := *e
-	ec.ErrCode = fmt.Sprintf("%3d%s", statusCode, ec.ErrCode[statusCodeLength:])
+	ec.httpStatusCode = statusCode
 	return &ec
 }
 
 func (e *errCode) WithCode(code string) ErrorCode {
 	ec := *e
-	ec.ErrCode = code
+	ec.code = code
 	return &ec
 }
 
 func (e *errCode) WithMessage(msg string) ErrorCode {
 	ec := *e
-	ec.ErrMessage = msg
+	ec.message = msg
 	return &ec
 }
 
 func (e *errCode) WithResult(result interface{}) ErrorCode {
 	ec := *e
-	ec.ErrResult = result
+	ec.result = result
 	return &ec
 }
 
-func (e *errCode) Equal(v error) bool {
-	for v != nil {
-		u, ok := v.(interface {
-			Unwrap() error
-		})
-		if !ok {
-			break
-		}
-		v = u.Unwrap()
-	}
+func (e *errCode) Is(v error) bool {
 	err, ok := v.(ErrorCode)
 	if !ok {
 		return false
 	}
-	return err.Code() == e.Code() && err.Message() == e.Message()
+	return err.Code() == e.Code()
+}
+
+func (e *errCode) Froze(code, message string, result interface{}) ErrorCode {
+	// 默认 ErrInternalServerError
+	e.serviceName = "undefined"
+	e.httpStatusCode = http.StatusInternalServerError
+	e.code = "0000001"
+	e.message = message
+
+	multiErrCode := code
+	index := strings.Index(multiErrCode, ".")
+	if index > 0 {
+		e.serviceName = multiErrCode[:index]
+		if index >= len(multiErrCode)-1 {
+			return e.WithResult(code + ";" + message)
+		}
+		multiErrCode = multiErrCode[index+1:]
+	}
+	if len(multiErrCode) <= 3 {
+		return e.WithResult(code + ";" + message)
+	}
+	httpStatusCode, err := strconv.Atoi(multiErrCode[:3])
+	if err != nil {
+		return e.WithResult(
+			fmt.Sprintf("code:%s,message:%s;%e",
+				code, message, err))
+	}
+	if httpStatusCode < 100 || httpStatusCode > 599 {
+		return e.WithResult(code + ";" + message)
+	}
+	e.httpStatusCode = httpStatusCode
+	e.code = multiErrCode[3:]
+	e.result = result
+	return e
+}
+
+func (e *errCode) MarshalJSON() ([]byte, error) {
+	return json.Marshal(struct {
+		Code    string      `json:"code"`
+		Message string      `json:"message"`
+		Result  interface{} `json:"result"`
+	}{
+		Code:    fmt.Sprintf("%s.%3d%s", e.ServiceName(), e.StatusCode(), e.Code()),
+		Message: e.Message(),
+		Result:  e.Result(),
+	})
+}
+
+func (e *errCode) UnmarshalJSON(bytes []byte) error {
+	var result struct {
+		Code    string      `json:"code"`
+		Message string      `json:"message"`
+		Result  interface{} `json:"result"`
+	}
+	if err := json.Unmarshal(bytes, &result); err != nil {
+		return err
+	}
+	_ = e.Froze(result.Code, result.Message, result.Result)
+	return nil
 }

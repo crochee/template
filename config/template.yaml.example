@@ -1,4 +1,4 @@
-mode: "debug" #gin/gorm run mode,attention:gorm log depends on this and zerolog level
+gin_mode: "debug" #gin/gorm run mode,attention:gorm log depends on this and zerolog level
 mysql:
   user: "root"
   password: "123456"

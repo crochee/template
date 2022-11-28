@@ -10,7 +10,7 @@ import (
 
 var _sliceEncoderPool = sync.Pool{
 	New: func() interface{} {
-		return &sliceArrayEncoder{elems: make([]interface{}, 0, 2)}
+		return &sliceArrayEncoder{elems: make([]interface{}, 0, 2)} // nolint:gomnd
 	},
 }
 
@@ -54,6 +54,7 @@ func (c consoleEncoder) Clone() zapcore.Encoder {
 	return consoleEncoder{c.jsonEncoder.Clone().(*jsonEncoder)}
 }
 
+// nolint:gocritic,gocyclo
 func (c consoleEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field) (*buffer.Buffer, error) {
 	line := _pool.Get()
 

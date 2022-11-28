@@ -25,9 +25,13 @@ func NewTaskConsumer(ctx context.Context, opts ...Option) Consumer {
 		opt(o)
 	}
 	return &taskConsumer{
-		pool: routine.NewPool(ctx, routine.Recover(func(ctx context.Context, i interface{}) {
-			logger.From(ctx).Error("recover", zap.Any("err", i))
-		})),
+		pool: routine.NewPool(ctx,
+			routine.Recover(func(ctx context.Context, i interface{}) {
+				logger.From(ctx).Error("recover", zap.Any("err", i))
+			}),
+			routine.CopyContext(func(dst context.Context, src context.Context) context.Context {
+				return dst
+			})),
 		marshal:     o.marshal,
 		handlerFunc: o.handlerFunc,
 	}
@@ -41,7 +45,7 @@ type taskConsumer struct {
 
 // Subscribe consume message form Channel with queueName
 func (t *taskConsumer) Subscribe(channel Channel, queueName string) error {
-	t.pool.Go(func(ctx context.Context) {
+	t.pool.Go(context.Background(), func(ctx context.Context) {
 		for {
 			select {
 			case <-ctx.Done():
@@ -80,7 +84,7 @@ func (t *taskConsumer) handleMessage(ctx context.Context, deliveries <-chan amqp
 		case <-ctx.Done():
 			return
 		case v := <-deliveries:
-			t.pool.Go(func(ctx context.Context) {
+			t.pool.Go(context.Background(), func(ctx context.Context) {
 				if err := t.handle(ctx, v); err != nil {
 					logger.From(ctx).Error(err.Error())
 				}

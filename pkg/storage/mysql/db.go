@@ -25,7 +25,7 @@ type option struct {
 
 	user     string
 	password string
-	IP       string
+	ip       string
 	port     string
 	database string
 	charset  string
@@ -38,20 +38,98 @@ type option struct {
 
 type Option func(*option)
 
+func WithDBDebug(debug bool) Option {
+	return func(o *option) {
+		o.debug = debug
+	}
+}
+
+func WithMaxOpenConn(maxOpenConn int) Option {
+	return func(o *option) {
+		o.maxOpenConn = maxOpenConn
+	}
+}
+
+func WithMaxIdleConn(maxIdleConn int) Option {
+	return func(o *option) {
+		o.maxIdleConn = maxIdleConn
+	}
+}
+
+func WithUser(user string) Option {
+	return func(o *option) {
+		o.user = user
+	}
+}
+
+func WithPassword(password string) Option {
+	return func(o *option) {
+		o.password = password
+	}
+}
+
+func WithIP(ip string) Option {
+	return func(o *option) {
+		o.ip = ip
+	}
+}
+
+func WithPort(port string) Option {
+	return func(o *option) {
+		o.port = port
+	}
+}
+
+func WithDatabase(db string) Option {
+	return func(o *option) {
+		o.database = db
+	}
+}
+
+func WithCharset(charset string) Option {
+	return func(o *option) {
+		o.charset = charset
+	}
+}
+
+func WithTimeout(timeout time.Duration) Option {
+	return func(o *option) {
+		o.timeout = timeout
+	}
+}
+
+func WithReadTimeout(readTimeout time.Duration) Option {
+	return func(o *option) {
+		o.readTimeout = readTimeout
+	}
+}
+
+func WithWriteTimeout(writeTimeout time.Duration) Option {
+	return func(o *option) {
+		o.writeTimeout = writeTimeout
+	}
+}
+
+func WithMaxLifetime(connMaxLifetime time.Duration) Option {
+	return func(o *option) {
+		o.connMaxLifetime = connMaxLifetime
+	}
+}
+
 // New init DB
 func New(ctx context.Context, opts ...Option) (*DB, error) {
 	o := &option{
 		debug:       true,
 		maxOpenConn: 100,
 		maxIdleConn: 80,
-		IP:          "127.0.0.1",
+		ip:          "127.0.0.1",
 		port:        "3306",
 		charset:     "utf8mb4",
 	}
 	for _, f := range opts {
 		f(o)
 	}
-	client, err := gorm.Open(mysql.Open(Dsn(o.user, o.password, o.IP, o.port,
+	client, err := gorm.Open(mysql.Open(Dsn(o.user, o.password, o.ip, o.port,
 		o.database, o.charset, o.timeout, o.readTimeout, o.writeTimeout)),
 		&gorm.Config{
 			SkipDefaultTransaction: false,
@@ -83,7 +161,7 @@ func New(ctx context.Context, opts ...Option) (*DB, error) {
 	sqlDB.SetMaxIdleConns(o.maxIdleConn)        // 默认值2
 	sqlDB.SetConnMaxLifetime(o.connMaxLifetime) // 默认值0，永不过期
 
-	c := &DB{DB: client, debug: o.debug}
+	c := &DB{DB: client, Debug: o.debug}
 	runtime.SetFinalizer(c, closeClient)
 	return c, nil
 }
@@ -118,18 +196,14 @@ type opt struct {
 	slowThreshold time.Duration
 	colorful      bool
 	levelFunc     func(glogger.LogLevel, bool) glogger.LogLevel
+	debug         bool
 }
 
 type Opt func(*opt)
 
 type DB struct {
 	*gorm.DB
-	debug bool
-}
-
-func (d *DB) Debug() bool {
-	return d.debug
-
+	Debug bool
 }
 
 // With options to set orm logger
@@ -143,16 +217,17 @@ func (d *DB) With(ctx context.Context, opts ...Opt) *DB {
 	for _, f := range opts {
 		f(o)
 	}
-	return &DB{DB: d.Session(&gorm.Session{
+	c := &DB{DB: d.Session(&gorm.Session{
 		Context: ctx,
-		Logger: gormx.NewLog(l, d.debug, glogger.Config{
+		Logger: gormx.NewLog(l, o.debug || d.Debug, glogger.Config{
 			SlowThreshold: o.slowThreshold,
 			Colorful:      o.colorful,
-			LogLevel:      o.levelFunc(glogger.Warn, d.debug),
+			LogLevel:      o.levelFunc(glogger.Info, d.Debug),
 		}),
 	}),
-		debug: d.debug,
+		Debug: d.Debug,
 	}
+	return c
 }
 
 func getLevel(l glogger.LogLevel, debug bool) glogger.LogLevel {
@@ -160,4 +235,19 @@ func getLevel(l glogger.LogLevel, debug bool) glogger.LogLevel {
 		return glogger.Info
 	}
 	return l
+}
+
+func WithNoInfoHandle(o *opt) {
+	o.levelFunc = noInfoHandle
+}
+
+func WithDebug(o *opt) {
+	o.debug = true
+}
+
+func noInfoHandle(level glogger.LogLevel, _ bool) glogger.LogLevel {
+	if level > glogger.Warn {
+		return glogger.Warn
+	}
+	return level
 }

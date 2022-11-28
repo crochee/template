@@ -34,7 +34,6 @@ func TestNewGroup(t *testing.T) {
 				},
 				func(ctx context.Context) error {
 					panic("panic")
-					return nil
 				},
 			},
 			expected: true,
@@ -77,7 +76,6 @@ func BenchmarkNewGroup(b *testing.B) {
 		})
 		g.Go(func(ctx context.Context) error {
 			panic("panic")
-			return nil
 		})
 		g.Go(func(ctx context.Context) error {
 			return nil
