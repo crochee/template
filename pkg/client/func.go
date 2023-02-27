@@ -4,16 +4,12 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
-	"go_template/pkg/code"
 
-	"go_template/pkg/json"
+	"template/pkg/code"
+	"template/pkg/json"
 )
 
 type Func func(*http.Response) error
-
-// DefaultFunc provides default error handling function implementation.
-// If the implementation does not meet your needs, you can change it yourself
-var DefaultFunc = []Func{ErrorFunc(http.StatusOK)}
 
 func ErrorFunc(expectStatusCode int) func(*http.Response) error {
 	return func(resp *http.Response) error {

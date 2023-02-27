@@ -7,8 +7,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"go_template/internal/util/v"
-	"go_template/pkg/storage/mysql"
+	"template/internal/util/v"
+	"template/pkg/storage"
 )
 
 // Pagination 分页
@@ -24,7 +24,7 @@ type Pagination struct {
 	Total int64 `json:"total"`
 }
 
-func (p *Pagination) Build(_ context.Context, query *gorm.DB, opts ...mysql.SQLOption) *gorm.DB {
+func (p *Pagination) Build(_ context.Context, query *gorm.DB, opts ...storage.SQLOption) *gorm.DB {
 	query.Count(&p.Total)
 	// -1表示全量查询
 	if p.PageSize == -1 {
@@ -47,7 +47,7 @@ type Sort struct {
 	SortField string `form:"sort" json:"sort" binding:"omitempty,order"`
 }
 
-func (s *Sort) Build(_ context.Context, query *gorm.DB, opts ...mysql.SQLOption) *gorm.DB {
+func (s *Sort) Build(_ context.Context, query *gorm.DB, opts ...storage.SQLOption) *gorm.DB {
 	// SortField 给多个字段排序
 	// created_at, id asc => order by created_at desc, id asc
 	defaultCreatedAtSort := true
@@ -75,13 +75,31 @@ func (s *Sort) Build(_ context.Context, query *gorm.DB, opts ...mysql.SQLOption)
 type ListQuery struct {
 	Pagination
 	Sort
-	Select string `json:"-"`
+	Select []string `json:"-"`
+	IDs    []string `form:"id" binding:"omitempty,number"`
 }
 
-func (l *ListQuery) Build(ctx context.Context, query *gorm.DB, opts ...mysql.SQLOption) *gorm.DB {
-	if l.Select != "" {
-		query = query.Select(l.Select)
+func (l *ListQuery) Build(ctx context.Context, query *gorm.DB, opts ...storage.SQLOption) *gorm.DB {
+	if length := len(l.Select); length > 0 {
+		if length == 1 {
+			query = query.Select(l.Select[0])
+		} else {
+			args := make([]interface{}, 0, length-1)
+			for _, selectValue := range l.Select[1:] {
+				args = append(args, selectValue)
+			}
+			query = query.Select(l.Select[0], args...)
+		}
 	}
+
+	if length := len(l.IDs); length > 0 {
+		if length == 1 {
+			query = query.Where("id = ?", l.IDs[0])
+		} else {
+			query = query.Where("id IN (?)", l.IDs)
+		}
+	}
+
 	query = l.Sort.Build(ctx, query, opts...)
 	return l.Pagination.Build(ctx, query, opts...)
 }

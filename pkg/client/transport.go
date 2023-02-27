@@ -1,17 +1,7 @@
 package client
 
 import (
-	"bytes"
-	"io"
-	"net"
 	"net/http"
-	"time"
-
-	uuid "github.com/satori/go.uuid"
-	"go.uber.org/zap"
-	"moul.io/http2curl"
-
-	"go_template/pkg/logger"
 )
 
 type Transport interface {
@@ -22,26 +12,15 @@ type Transport interface {
 
 	Request() Requester
 	Response() Response
+	Client() http.RoundTripper
 
 	Method(string) RESTClient
 }
 
-// DefaultTransport 默认配置的传输层实现
 var DefaultTransport Transport = &Transporter{
-	req: OriginalRequest{},
-	roundTripper: &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
-		IdleConnTimeout:       90 * time.Second,
-		TLSHandshakeTimeout:   10 * time.Second,
-		ExpectContinueTimeout: 1 * time.Second,
-	},
-	resp: ResponseHandler{},
+	req:          OriginalRequest{},
+	roundTripper: CurlRoundTripperWithFault(),
+	resp:         ResponseHandler{},
 }
 
 type Transporter struct {
@@ -51,40 +30,7 @@ type Transporter struct {
 }
 
 func (t *Transporter) RoundTrip(req *http.Request) (*http.Response, error) {
-	// 打印curl语句，便于问题分析和定位
-	spanID := uuid.NewV4().String()
-	curl, err := http2curl.GetCurlCommand(req)
-	if err == nil {
-		logger.From(req.Context()).Info("going to do Request",
-			zap.String("span_id", spanID),
-			zap.String("Request", curl.String()),
-		)
-	} else {
-		logger.From(req.Context()).Error(err.Error())
-	}
-
-	var resp *http.Response
-	if resp, err = t.roundTripper.RoundTrip(req); err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode == http.StatusNoContent {
-		logger.From(req.Context()).Info("get response body",
-			zap.String("span_id", spanID),
-			zap.Int("status", resp.StatusCode),
-		)
-	}
-	var response []byte
-	if response, err = io.ReadAll(resp.Body); err != nil {
-		return nil, err
-	}
-	logger.From(req.Context()).Info("get response body",
-		zap.String("span_id", spanID),
-		zap.ByteString("Response", response),
-	)
-	// Reset resp.Body so it can be use again
-	resp.Body = io.NopCloser(bytes.NewBuffer(response))
-	return resp, nil
+	return t.roundTripper.RoundTrip(req)
 }
 
 func (t *Transporter) WithRequest(requester Requester) Transport {
@@ -117,6 +63,10 @@ func (t *Transporter) Request() Requester {
 
 func (t *Transporter) Response() Response {
 	return t.resp
+}
+
+func (t *Transporter) Client() http.RoundTripper {
+	return t.roundTripper
 }
 
 func (t *Transporter) Method(method string) RESTClient {

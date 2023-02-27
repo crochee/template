@@ -5,14 +5,12 @@ import (
 	"context"
 	"io"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
 
-	"go_template/pkg/code"
-	"go_template/pkg/json"
-	"go_template/pkg/utils/v"
+	"template/pkg/code"
+	"template/pkg/json"
 )
 
 type Requester interface {
@@ -45,7 +43,7 @@ func (o OriginalRequest) Build(ctx context.Context, method, url string, body int
 	}
 	req, err := http.NewRequestWithContext(ctx, method, url, reader)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(code.ErrInternalServerError.WithResult(err.Error()))
 	}
 	for key, values := range headers {
 		for _, value := range values {
@@ -55,6 +53,5 @@ func (o OriginalRequest) Build(ctx context.Context, method, url string, body int
 	if objectData {
 		req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	}
-	req.Header.Set("Content-Length", strconv.FormatInt(req.ContentLength, v.Decimal))
 	return req, nil
 }

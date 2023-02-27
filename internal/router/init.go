@@ -2,28 +2,37 @@ package router
 
 import (
 	"github.com/gin-gonic/gin"
+	"github.com/spf13/viper"
 
-	"go_template/pkg/middleware"
+	"template/internal/controllers"
+	"template/internal/gateway"
+	"template/internal/service"
+	"template/internal/store"
+	"template/pkg/logger"
+	"template/pkg/middlewares"
 )
 
 // New gin router
-func New() *gin.Engine {
+func New(store store.Store, client gateway.Client) *gin.Engine {
 	// init
+	gin.DefaultWriter = logger.SetWriter(viper.GetBool("log.console"))
+
 	router := gin.New()
-
-	// add middleware
+	router.GET("/health", controllers.Health)
+	// add middlewares
 	router.Use(
-		middleware.RequestLogger,
-		middleware.Log,
-		middleware.Recovery,
+		middlewares.Log,
+		middlewares.Recovery,
 	)
-
-	v1RouterGroup(router)
+	srv := service.NewService(store, client)
+	v1RouterGroup(router, srv)
 
 	return router
 }
 
-func v1RouterGroup(router *gin.Engine) {
+func v1RouterGroup(router *gin.Engine, srv service.Service) {
 	v1Router := router.Group("/v1")
-	v1Router.GET("/demod")
+	{
+		registerArea(v1Router, srv)
+	}
 }

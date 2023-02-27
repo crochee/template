@@ -81,7 +81,7 @@ func Test_convertBody(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := convertBody(tt.args.body)
+			got, err := (coPartner{}).convertBody(tt.args.body)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("convertBody() error = %v, wantErr %v", err, tt.wantErr)
 				return

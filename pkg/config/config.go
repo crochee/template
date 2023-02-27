@@ -1,6 +1,8 @@
 package config
 
 import (
+	"context"
+
 	"github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
@@ -68,4 +70,31 @@ func LoadConfig(opts ...Option) error {
 
 	// If a config file is found, read it in.
 	return viper.ReadInConfig()
+}
+
+type SyncHandler interface {
+	Sync(context.Context) error
+}
+
+type Getter interface {
+	Get(ctx context.Context, selectRemote bool) error
+}
+
+// Sync 同步所有处理者
+func Sync(ctx context.Context, handlers ...SyncHandler) error {
+	for _, handler := range handlers {
+		if err := handler.Sync(ctx); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func Get(ctx context.Context, selectRemote bool, getters ...Getter) error {
+	for _, getter := range getters {
+		if err := getter.Get(ctx, selectRemote); err != nil {
+			return err
+		}
+	}
+	return nil
 }

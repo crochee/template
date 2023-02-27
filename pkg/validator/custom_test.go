@@ -92,3 +92,52 @@ func TestOrderWithDBSort(t *testing.T) {
 		})
 	}
 }
+
+func TestComponentName(t *testing.T) {
+	engine, err := New()
+	assert.Nil(t, err)
+	err = RegisterValidation(engine, "component_name", ComponentName)
+	assert.Nil(t, err)
+
+	type Component struct {
+		Name string `binding:"required,component_name"`
+	}
+	type args struct {
+		value string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "",
+			args: args{},
+			want: true,
+		},
+		{
+			name: "legal",
+			args: args{
+				value: "89sd_合法",
+			},
+			want: false,
+		},
+		{
+			name: "limit_length",
+			args: args{
+				value: "89sd_合法89sd_合法89sd_合法89sd_合法89sd_合法89sd_合法89sd_合法89sd_合法89sd_合法",
+			},
+			want: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err = engine.ValidateStruct(Component{Name: tt.args.value})
+			if tt.want {
+				assert.NotNil(t, err, "err:%v", err)
+				return
+			}
+			assert.Nil(t, err, "err:%v", err)
+		})
+	}
+}

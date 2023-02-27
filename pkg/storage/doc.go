@@ -1,2 +1,2 @@
-// Package storage contains control logic and database operations
+// Package mysql implements storage
 package storage
