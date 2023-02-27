@@ -57,3 +57,7 @@ run: dep fmt
 .PHONY: clean
 clean:
 	@rm -rf $(OUT_DIR)
+
+.PHONY: stage
+stage:
+	@chmod +x ./scripts/stage.sh && ./scripts/stage.sh $(branch) $(id)
