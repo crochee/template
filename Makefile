@@ -1,5 +1,5 @@
 OUT_DIR = ./out
-PROJECT = go_template
+PROJECT = template
 TARGET_GOARCH=$(ARCH)
 
 # 获取宿主机CPU架构
@@ -31,7 +31,7 @@ dep:
 .PHONY: fmt
 fmt:
 	@echo "formatting..."
-	@gofmt -w ./../$(PROJECT)
+	@gofmt -w .
 
 .PHONY: build
 build:

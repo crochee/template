@@ -81,6 +81,10 @@ func (t *fixTransport) Response() Response {
 	return t.t.Response()
 }
 
+func (t *fixTransport) Client() http.RoundTripper {
+	return t.t.Client()
+}
+
 func (t *fixTransport) Method(method string) RESTClient {
 	r := &restfulClient{c: t.t, verb: method}
 	return r.Endpoints(t.endpoint).Resource(t.resource)

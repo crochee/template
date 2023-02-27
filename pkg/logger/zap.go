@@ -5,7 +5,8 @@ import (
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"go_template/pkg/logger/console"
+
+	"template/pkg/logger/console"
 )
 
 func New(opts ...Option) *zap.Logger {

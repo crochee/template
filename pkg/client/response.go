@@ -7,8 +7,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"go_template/pkg/code"
-	"go_template/pkg/json"
+	"template/pkg/code"
+	"template/pkg/json"
 )
 
 type Response interface {
@@ -19,9 +19,6 @@ type ResponseHandler struct {
 }
 
 func (o ResponseHandler) Parse(resp *http.Response, result interface{}, opts ...Func) error {
-	if len(opts) == 0 {
-		opts = append(opts, DefaultFunc...)
-	}
 	for _, opt := range opts {
 		if err := opt(resp); err != nil {
 			return err

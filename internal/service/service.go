@@ -1,20 +1,27 @@
 package service
 
 import (
-	"go_template/internal/service/authenticate"
+	"template/internal/gateway"
+	"template/internal/service/area"
+	"template/internal/store"
 )
 
 type Service interface {
-	Auth() authenticate.AuthenticateSrv
+	Area() area.AreaSrv
 }
 
-func NewService() Service {
-	return &service{}
+func NewService(store store.Store, client gateway.Client) Service {
+	return service{
+		store:  store,
+		client: client,
+	}
 }
 
 type service struct {
+	store  store.Store
+	client gateway.Client
 }
 
-func (s *service) Auth() authenticate.AuthenticateSrv {
-	return authenticate.NewAuthenticateSrv()
+func (s service) Area() area.AreaSrv {
+	return area.NewAreaSrv(s.store, s.client)
 }

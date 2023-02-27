@@ -3,7 +3,7 @@ package ctxw
 import (
 	"context"
 
-	"go_template/pkg/logger"
+	"template/pkg/logger"
 )
 
 type (

@@ -33,6 +33,8 @@ func putJSONEncoder(enc *jsonEncoder) {
 		enc.reflectBuf.Free()
 	}
 	enc.EncoderConfig = nil
+
+	enc.truncate()
 	enc.buf = nil
 	enc.spaced = false
 	enc.openNamespaces = 0
@@ -228,7 +230,7 @@ func (enc *jsonEncoder) AppendByteString(val []byte) {
 func (enc *jsonEncoder) appendComplex(val complex128, precision int) {
 	enc.addElementSeparator()
 	// Cast to a platform-independent, fixed-size type.
-	r, i := float64(real(val)), float64(imag(val))
+	r, i := real(val), imag(val)
 	enc.buf.AppendByte('"')
 	// Because we're always in a quoted string, we can use strconv without
 	// special-casing NaN and +/-Inf.
@@ -316,10 +318,10 @@ func (enc *jsonEncoder) AddUint32(k string, v uint32)   { enc.AddUint64(k, uint6
 func (enc *jsonEncoder) AddUint16(k string, v uint16)   { enc.AddUint64(k, uint64(v)) }
 func (enc *jsonEncoder) AddUint8(k string, v uint8)     { enc.AddUint64(k, uint64(v)) }
 func (enc *jsonEncoder) AddUintptr(k string, v uintptr) { enc.AddUint64(k, uint64(v)) }
-func (enc *jsonEncoder) AppendComplex64(v complex64)    { enc.appendComplex(complex128(v), 32) }
-func (enc *jsonEncoder) AppendComplex128(v complex128)  { enc.appendComplex(complex128(v), 64) }
-func (enc *jsonEncoder) AppendFloat64(v float64)        { enc.appendFloat(v, 64) }
-func (enc *jsonEncoder) AppendFloat32(v float32)        { enc.appendFloat(float64(v), 32) }
+func (enc *jsonEncoder) AppendComplex64(v complex64)    { enc.appendComplex(complex128(v), 32) } // nolint:gomnd
+func (enc *jsonEncoder) AppendComplex128(v complex128)  { enc.appendComplex(v, 64) }             // nolint:gomnd
+func (enc *jsonEncoder) AppendFloat64(v float64)        { enc.appendFloat(v, 64) }               // nolint:gomnd
+func (enc *jsonEncoder) AppendFloat32(v float32)        { enc.appendFloat(float64(v), 32) }      // nolint:gomnd
 func (enc *jsonEncoder) AppendInt(v int)                { enc.AppendInt64(int64(v)) }
 func (enc *jsonEncoder) AppendInt32(v int32)            { enc.AppendInt64(int64(v)) }
 func (enc *jsonEncoder) AppendInt16(v int16)            { enc.AppendInt64(int64(v)) }
@@ -345,6 +347,7 @@ func (enc *jsonEncoder) clone() *jsonEncoder {
 	return clone
 }
 
+// nolint:gocritic,gocyclo
 func (enc *jsonEncoder) EncodeEntry(ent zapcore.Entry, fields []zapcore.Field) (*buffer.Buffer, error) {
 	final := enc.clone()
 	final.buf.AppendByte('{')

@@ -5,14 +5,12 @@ import (
 	"net/http"
 	"time"
 
-	"go_template/internal/gateway/base"
-	"go_template/internal/request"
-	"go_template/pkg/client"
-	"go_template/pkg/utils"
+	"template/internal/gateway/base"
+	"template/pkg/client"
 )
 
 type AreaSrv interface {
-	List(ctx context.Context, req request.QueryAreaListReq) (*GetAreasDetailRsp, error)
+	List(ctx context.Context, param *QueryAreaListParam) (*GetAreasDetailRsp, error)
 }
 
 type AreaClient struct {
@@ -77,17 +75,36 @@ type SiteNet struct {
 	NetType string `json:"net_type"`
 }
 
-func (a AreaClient) List(ctx context.Context, req request.QueryAreaListReq) (*GetAreasDetailRsp, error) {
+type QueryAreaListParam struct {
+	// 查询第几页
+	// Example: 1
+	PageNum int `form:"page_num,default=1" json:"page_num" binding:"omitempty,min=0"`
+	// 查询每页显示条目
+	// Example: 100
+	PageSize int `form:"page_size,default=20" json:"page_size" binding:"omitempty,min=-1"`
+	// 多个主机类型时通过，进行分割，如 flavor_types=S,M,L,KS,KM,EN,B
+	FlavorTypes string `json:"flavor_types" form:"flavor_types" binding:"omitempty,oneof=S M L KS KM EN B"`
+	// 系统盘类型，多个值通过英文逗号进行分割，枚举值： efficiency, ssd
+	SysVolumeTypes string `json:"sys_volume_types" form:"sys_volume_types" binding:"omitempty,oneof=efficiency ssd"`
+	// 数据盘类型，多个值通过英文逗号进行分割，枚举值： efficiency, ssd
+	VolumeTypes string `json:"volume_types" form:"volume_types" binding:"omitempty,oneof=efficiency ssd"`
+	AreaName    string `json:"search_by_name"`
+	AreaCode    string `json:"area_code"`
+}
+
+func (a AreaClient) List(ctx context.Context, param *QueryAreaListParam) (*GetAreasDetailRsp, error) {
 	var result GetAreasDetailRsp
-	if err := a.To().WithRequest(base.DCSRequest{}).
+	if err := a.To().WithRequest(base.IfpRequest{}).
 		WithResponse(base.Parser{}).
 		Method(http.MethodGet).
 		Prefix("v2").
-		Param("page_num", utils.ToString(req.PageNum)).
-		Param("page_size", utils.ToString(req.PageSize)).
-		Param("flavor_types", req.FlavorTypes).
-		Param("sys_volume_types", req.SysVolumeTypes).
-		Param("volume_types", req.VolumeTypes).
+		Param("page_num", param.PageNum).
+		Param("page_size", param.PageSize).
+		Param("flavor_types", param.FlavorTypes).
+		Param("sys_volume_types", param.SysVolumeTypes).
+		Param("volume_types", param.VolumeTypes).
+		Param("search_by_name", param.AreaName).
+		Param("area_code", param.AreaCode).
 		Do(ctx, &result); err != nil {
 		return nil, err
 	}

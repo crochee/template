@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"flag"
 	"fmt"
 	"log"
@@ -11,8 +12,8 @@ import (
 
 	"github.com/pressly/goose"
 
-	"go_template/config"
-	"go_template/internal/store/mysql"
+	"template/config"
+	"template/internal/store/mysql"
 )
 
 var (
@@ -55,7 +56,8 @@ func run() error {
 		log.Fatal(err)
 	}
 
-	if err := mysql.Init(context.Background()); err != nil {
+	db, err := mysql.NewMysqlClient(context.Background())
+	if err != nil {
 		return err
 	}
 
@@ -63,8 +65,8 @@ func run() error {
 	if len(args) > 1 {
 		arguments = append(arguments, args[1:]...)
 	}
-	d, err := mysql.DB(context.Background()).DB.DB()
-	if err != nil {
+	var d *sql.DB
+	if d, err = db.DB.DB.DB(); err != nil {
 		return err
 	}
 	return goose.Run(command, d, *dir, arguments...)

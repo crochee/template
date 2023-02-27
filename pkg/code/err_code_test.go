@@ -18,7 +18,7 @@ func TestFroze(t *testing.T) {
 		{
 			name: "nil",
 			args: args{
-				code:    "D3S.4000000002",
+				code:    "DSF.4000000002",
 				message: "",
 			},
 			want: ErrInvalidParam,

@@ -3,26 +3,18 @@ package gateway
 import (
 	"github.com/spf13/viper"
 
-	"go_template/internal/gateway/dcs"
-	"go_template/pkg/client"
+	"template/internal/gateway/dcs"
+	"template/pkg/client"
 )
 
-type IClient interface {
+type Client interface {
 	Area() dcs.AreaSrv
 }
 
-var iClient IClient
-
-func SetClient(c IClient) {
-	iClient = c
-}
-
-func NewClient() IClient {
-	return iClient
-}
-
-func NewBaseClient() IClient {
-	return &baseClient{client.NewResource().AddEndpoint(viper.GetString("ifp.url"))}
+func NewBaseClient() Client {
+	return &baseClient{
+		IRequest: client.NewResource().
+			AddEndpoint(viper.GetString("ifp.url"))}
 }
 
 type baseClient struct {
@@ -30,5 +22,5 @@ type baseClient struct {
 }
 
 func (c baseClient) Area() dcs.AreaSrv {
-	return dcs.AreaClient{c.AddPath("areas_detail")}
+	return dcs.AreaClient{IRequest: c.AddPath("areas_detail")}
 }

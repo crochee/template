@@ -24,11 +24,13 @@ func (extension *u64AsStringCodec) UpdateStructDescriptor(structDescriptor *json
 				if tagPart == "string" {
 					binding.Encoder = &funcEncoder{fun: func(ptr unsafe.Pointer, stream *jsoniter.Stream) {
 						val := *((*uint64)(ptr))
+						var err error
 						if val == 0 {
-							_, _ = stream.Write([]byte(nil))
+							_, err = stream.Write([]byte(nil))
 						} else {
-							_, _ = stream.Write([]byte(strconv.FormatUint(val, 10)))
+							_, err = stream.Write([]byte(strconv.FormatUint(val, 10)))
 						}
+						stream.Error = err
 					}}
 					binding.Decoder = &funcDecoder{func(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
 						if iter.WhatIsNext() != jsoniter.StringValue {

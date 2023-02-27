@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"strings"
 
-	"go_template/pkg/json"
+	"template/pkg/json"
 )
 
 // From parse the ErrorCode from the http.Response
