@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"anchor/pkg/logger"
+	"template/pkg/logger"
 )
 
 func TestPipelineTask(t *testing.T) {
