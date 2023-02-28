@@ -7,7 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 
-	"anchor/pkg/logger"
+	"template/pkg/logger"
 )
 
 func NewFirst() Task {
