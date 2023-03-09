@@ -4,8 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"os"
-	"runtime"
 	"sync"
 	"time"
 
@@ -69,6 +67,8 @@ func WithQos(qos QosOption) ChannelOption {
 	}
 }
 
+//go:generate mockgen -source=./channel.go -destination=./channel_mock.go -package=async
+
 // Channel is a channel interface to make testing possible.
 // It is highly recommended to use *amqp.Channel as the interface implementation.
 type Channel interface {
@@ -97,11 +97,6 @@ func NewRabbitmqChannel(opts ...ChannelOption) (Channel, error) {
 	if err := r.connect(); err != nil {
 		return nil, err
 	}
-	runtime.SetFinalizer(r, func(w *rabbitmqChannel) {
-		if err := multierr.Append(w.channel.Close(), w.conn.Close()); err != nil {
-			_, _ = os.Stderr.WriteString(err.Error())
-		}
-	})
 	return r, nil
 }
 
@@ -110,6 +105,10 @@ type rabbitmqChannel struct {
 	conn    *amqp.Connection
 	channel *amqp.Channel
 	mu      sync.Mutex
+}
+
+func (r *rabbitmqChannel) Close() error {
+	return multierr.Append(r.channel.Close(), r.conn.Close())
 }
 
 func (r *rabbitmqChannel) connect() error {
@@ -227,7 +226,8 @@ func (r *rabbitmqChannel) txPublish(exchange, key string, mandatory, immediate b
 	return
 }
 
-func (r *rabbitmqChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWail bool, args amqp.Table) (<-chan amqp.Delivery, error) {
+func (r *rabbitmqChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWail bool,
+	args amqp.Table) (<-chan amqp.Delivery, error) {
 	if err := r.retry(); err != nil {
 		return nil, err
 	}

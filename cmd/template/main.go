@@ -67,6 +67,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	defer dataStore.DB.Close()
 	// 后台调用注册实现
 	client := gateway.NewBaseClient()
 

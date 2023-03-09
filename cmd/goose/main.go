@@ -60,7 +60,7 @@ func run() error {
 	if err != nil {
 		return err
 	}
-
+	defer db.DB.Close()
 	var arguments []string
 	if len(args) > 1 {
 		arguments = append(arguments, args[1:]...)

@@ -7,11 +7,10 @@ package redisx
 import (
 	context "context"
 	reflect "reflect"
+	registry "template/pkg/registry"
 
 	v8 "github.com/go-redis/redis/v8"
 	gomock "github.com/golang/mock/gomock"
-
-	registry "template/pkg/registry"
 )
 
 // MockEncoder is a mock of Encoder interface.
