@@ -60,4 +60,4 @@ clean:
 
 .PHONY: stage
 stage:
-	@chmod +x ./scripts/stage.sh && ./scripts/stage.sh $(branch) $(id)
+	@chmod +x ./scripts/stage.sh && ./scripts/stage.sh $(branch)
