@@ -2,11 +2,16 @@ package async
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
+	"template/pkg/json"
 	"testing"
 	"time"
 
+	"github.com/ThreeDotsLabs/watermill/message"
+	"github.com/golang/mock/gomock"
+	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 )
 
@@ -125,13 +130,52 @@ func TestProduce(t *testing.T) {
 }
 
 func TestConsume(t *testing.T) {
-	cc, err := NewRabbitmqChannel(
-		WithURI("amqp://admin:1234567@localhost:5672/"),
-		WithAttempt(3),
-		WithInterval(time.Second))
-	if err != nil {
-		t.Fatal(err)
-	}
+	ctl := gomock.NewController(t)
+	defer ctl.Finish()
+
+	mockChannel := make(chan amqp.Delivery, 10)
+	go func() {
+		data, err := json.Marshal(&Param{
+			TaskType: "test1",
+			Data:     []byte("sd"),
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		msg, err := (DefaultMarshal{}).Marshal(message.NewMessage(uuid.NewV4().String(), data))
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		mockChannel <- amqp.Delivery{
+			Acknowledger:    mockAck{},
+			Headers:         msg.Headers,
+			ContentType:     msg.ContentType,
+			ContentEncoding: msg.ContentEncoding,
+			DeliveryMode:    msg.DeliveryMode,
+			Priority:        msg.Priority,
+			CorrelationId:   msg.CorrelationId,
+			ReplyTo:         msg.ReplyTo,
+			Expiration:      msg.Expiration,
+			MessageId:       msg.MessageId,
+			Timestamp:       msg.Timestamp,
+			Type:            msg.Type,
+			UserId:          msg.UserId,
+			AppId:           msg.AppId,
+			ConsumerTag:     "",
+			MessageCount:    0,
+			DeliveryTag:     0,
+			Redelivered:     false,
+			Exchange:        "",
+			RoutingKey:      "",
+			Body:            msg.Body,
+		}
+		close(mockChannel)
+	}()
+	cc := NewMockChannel(ctl)
+	cc.EXPECT().Consume(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
+		gomock.Any(), gomock.Any()).Return(mockChannel, nil).AnyTimes()
+
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	tc := NewTaskConsumer(context.Background())
@@ -139,7 +183,7 @@ func TestConsume(t *testing.T) {
 	tc.Register(&test1{})
 	tc.Register(&multiTest{list: []TaskHandler{test{}, &test1{}}})
 	tc.Register(&rudder{})
-	if err = tc.Subscribe(ctx, cc, "msg.dcs.woden"); err != nil {
+	if err := tc.Subscribe(ctx, cc, "msg.dcs.woden"); err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal(err)
 	}
 }

@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"log"
-	"runtime"
 	"time"
 
 	"gorm.io/driver/mysql"
@@ -162,19 +160,7 @@ func New(ctx context.Context, opts ...Option) (*DB, error) {
 	sqlDB.SetConnMaxLifetime(o.connMaxLifetime) // 默认值0，永不过期
 
 	c := &DB{DB: client, Debug: o.debug}
-	runtime.SetFinalizer(c, closeClient)
 	return c, nil
-}
-
-func closeClient(c *DB) {
-	s, err := c.DB.DB()
-	if err != nil {
-		log.Println(err)
-		return
-	}
-	if err = s.Close(); err != nil {
-		log.Println(err)
-	}
 }
 
 func Dsn(user, password, ip, port, database, charset string, timeout, readTimeout, writeTimeout time.Duration) string {
@@ -206,6 +192,14 @@ type DB struct {
 	Debug bool
 }
 
+func (d *DB) Close() error {
+	s, err := d.DB.DB()
+	if err != nil {
+		return err
+	}
+	return s.Close()
+}
+
 // With options to set orm logger
 func (d *DB) With(ctx context.Context, opts ...Opt) *DB {
 	l := logger.From(ctx)
@@ -217,7 +211,7 @@ func (d *DB) With(ctx context.Context, opts ...Opt) *DB {
 	for _, f := range opts {
 		f(o)
 	}
-	c := &DB{DB: d.Session(&gorm.Session{
+	c := &DB{DB: d.DB.Session(&gorm.Session{
 		Context: ctx,
 		Logger: gormx.NewLog(l, o.debug || d.Debug, glogger.Config{
 			SlowThreshold: o.slowThreshold,

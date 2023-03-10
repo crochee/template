@@ -2,11 +2,11 @@ package async
 
 import (
 	"context"
+	"os"
 	"runtime/debug"
-	"strconv"
-	"sync/atomic"
 
 	"github.com/json-iterator/go"
+	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 	"go.uber.org/zap"
 
@@ -70,8 +70,6 @@ func (t *taskConsumer) Unregister(names ...string) {
 	t.manager.Unregister(names...)
 }
 
-var consumerSeq uint64
-
 const consumerTagLengthMax = 0xFF // see writeShortstr
 
 func uniqueConsumerTag(name string) string {
@@ -84,8 +82,8 @@ func commandNameBasedUniqueConsumerTag(name string) string {
 	if tagInfix == "" {
 		tagInfix = "amqp"
 	}
-	tagSuffix := "." + strconv.FormatUint(atomic.AddUint64(&consumerSeq, 1), 10)
-
+	tagInfix += os.Args[0]
+	tagSuffix := "." + uuid.NewV4().String()
 	if len(tagPrefix)+len(tagInfix)+len(tagSuffix) > consumerTagLengthMax {
 		tagInfix = tagInfix[:consumerTagLengthMax-len(tagPrefix)-len(tagSuffix)]
 	}
