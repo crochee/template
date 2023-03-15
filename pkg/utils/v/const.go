@@ -14,3 +14,9 @@ const (
 	DefaultPageNum  = 1
 	DefaultPageSize = 20
 )
+
+// 布尔值
+const (
+	True  = "true"
+	False = "false"
+)

@@ -13,6 +13,7 @@ import (
 	"template/pkg/metric"
 	"template/pkg/metric/model"
 	"template/pkg/resp"
+	"template/pkg/resp/csv"
 )
 
 var defaultFilterDay = []int{1, 2, 3, 4, 5, 6, 7}
@@ -73,6 +74,8 @@ type ListMetricParam struct {
 	Number int `json:"number" form:"number,default=20"`
 	// 排序字段, 默认以最大时延排序
 	Type string `json:"type" form:"type,default=max" binding:"omitempty,oneof=max min average count"`
+	// 是否将结果以表格形式返回，表格返回-true, json返回-false, 默认返回json
+	Table bool `json:"table" form:"table"`
 }
 
 func listMetricDetail(c *gin.Context) {
@@ -114,12 +117,15 @@ func listMetricDetail(c *gin.Context) {
 		filter.Days = defaultFilterDay
 	}
 
-	result := metric.Monitor.MetricsSort(filter)
-	c.JSON(http.StatusOK, struct {
-		List interface{} `json:"list"`
-	}{
-		List: result,
-	})
+	response := metric.MetricsSortTable{
+		List: metric.Monitor.MetricsSort(filter),
+	}
+	if param.Table {
+		tableHeader, sheet := metric.GenerateTableAttr(filter)
+		resp.SuccessWithFile(c, response, sheet, csv.Headers(tableHeader))
+		return
+	}
+	c.JSON(http.StatusOK, response)
 }
 
 type ListMetricQueryConditionResult struct {
