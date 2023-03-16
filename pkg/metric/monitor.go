@@ -3,8 +3,10 @@ package metric
 import (
 	"context"
 	"runtime/debug"
+	"strconv"
 	"time"
 
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"template/pkg/logger"
@@ -173,13 +175,13 @@ func (m *monitor) Metrics(f Filter) []*Metrics {
 }
 
 type MetricsSort struct {
-	MaxLatency          uint64 `json:"max_latency,omitempty"`
-	MinLatency          uint64 `json:"min_latency"`
-	AverageLatency      uint64 `json:"average_latency,omitempty"`
-	RequestCount        uint64 `json:"request_count,omitempty"`
+	MaxLatency          uint64 `json:"max_latency,omitempty" csv:"最大时延（ms）"`
+	MinLatency          uint64 `json:"min_latency" csv:"最小时延（ms）"`
+	AverageLatency      uint64 `json:"average_latency,omitempty" csv:"平均时延（ms）"`
+	RequestCount        uint64 `json:"request_count,omitempty" csv:"请求总数（次）"`
 	RequestTotalLatency uint64 `json:"-"`
-	Day                 string `json:"day"`
-	Label               string `json:"label"`
+	Day                 string `json:"day" csv:"日期"`
+	Label               string `json:"label" csv:"资源标签"`
 }
 
 func (m *monitor) MetricsSort(f Filter) []*MetricsSort {
@@ -229,7 +231,37 @@ func (m *monitor) MetricsSort(f Filter) []*MetricsSort {
 		res = append(res, v)
 	}
 
-	return metricsSort(f, res)
+	analyseResult := metricsSort(f, res)
+	if analyseResult == nil {
+		analyseResult = make([]*MetricsSort, 0)
+	}
+	return analyseResult
+}
+
+type MetricsSortTable struct {
+	List []*MetricsSort `json:"list"`
+}
+
+func GenerateTableAttr(f Filter) ([]string, string) {
+	// 生成 sheet = service_max_top?
+	name := viper.GetString("project.name")
+	sheet := name + "_" + f.Type + "_top" + strconv.Itoa(f.Number)
+
+	// 生成表头信息
+	tableHeader := []string{"资源标签"}
+	switch f.Type {
+	case SortWithMaxLatency:
+		tableHeader = append(tableHeader, "最大时延（ms）")
+	case SortWithMinLatency:
+		tableHeader = append(tableHeader, "最小时延（ms）")
+	case SortWithAverageLatency:
+		tableHeader = append(tableHeader, "平均时延（ms）")
+	case SortWithRequestCount:
+		tableHeader = append(tableHeader, "请求总数（次）")
+	}
+	tableHeader = append(tableHeader, "日期")
+
+	return tableHeader, sheet
 }
 
 func metricsSort(f Filter, res []*MetricsSort) []*MetricsSort {
