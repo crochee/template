@@ -174,12 +174,10 @@ func ContainLabel(a []*Label, b *Label) bool {
 
 // More a>=b
 func More(a []*Label, b []*Label) bool {
-	var notExist int
 	for _, bValue := range b {
 		if !ContainLabel(a, bValue) {
-			notExist += 1
+			return false
 		}
 	}
-	// 筛选条件的label均不存在于已收集label中
-	return notExist != len(b)
+	return true
 }
