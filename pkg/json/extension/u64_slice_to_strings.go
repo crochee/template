@@ -30,7 +30,20 @@ func (extension *u64SliceAsStringsCodec) UpdateStructDescriptor(structDescriptor
 						}
 						stream.WriteVal(strs)
 					}}
-					binding.Decoder = &funcDecoder{}
+					binding.Decoder = &funcDecoder{
+						fun: func(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
+							if iter.WhatIsNext() == jsoniter.ArrayValue {
+								arr := []uint64{}
+								iter.ReadArrayCB(func(iterator *jsoniter.Iterator) bool {
+									value := iterator.ReadString()
+									res, _ := strconv.ParseUint(value, 10, 64)
+									arr = append(arr, res)
+									return true
+								})
+								*((*[]uint64)(ptr)) = arr
+							}
+						},
+					}
 					break
 				}
 			}

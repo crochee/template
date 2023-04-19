@@ -157,6 +157,9 @@ func (r *restfulClient) Param(key string, values ...interface{}) RESTClient {
 		return r
 	}
 	for _, value := range values {
+		if value == nil || value == "" {
+			continue
+		}
 		r.params.Add(key, utils.ToString(value))
 	}
 	return r
@@ -205,6 +208,9 @@ func (r *restfulClient) SetHeader(key string, values ...string) RESTClient {
 	}
 	r.headers.Del(key)
 	for _, value := range values {
+		if value == "" {
+			continue
+		}
 		r.headers.Add(key, value)
 	}
 	return r
