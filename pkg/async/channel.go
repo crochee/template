@@ -196,15 +196,15 @@ func (r *rabbitmqChannel) Publish(exchange, key string, mandatory, immediate boo
 	if err := r.retry(); err != nil {
 		return err
 	}
-	if !r.tx {
-		for _, m := range msg {
-			if err := r.channel.Publish(exchange, key, mandatory, immediate, m); err != nil {
-				return err
-			}
-		}
-		return nil
+	if r.tx {
+		return r.txPublish(exchange, key, mandatory, immediate, msg...)
 	}
-	return r.txPublish(exchange, key, mandatory, immediate, msg...)
+	for _, m := range msg {
+		if err := r.channel.Publish(exchange, key, mandatory, immediate, m); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (r *rabbitmqChannel) txPublish(exchange, key string, mandatory, immediate bool, msg ...amqp.Publishing) (err error) {
@@ -303,4 +303,16 @@ func (r *rabbitmqChannel) DeclareAndBind(exchange, kind, queue, key string, args
 		return err
 	}
 	return r.channel.QueueBind(queue, key, exchange, false, bindArg)
+}
+
+type NoopChannel struct{}
+
+func (NoopChannel) Publish(exchange, key string, mandatory, immediate bool, msg ...amqp.Publishing) error {
+	return nil
+}
+func (NoopChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWail bool, args amqp.Table) (<-chan amqp.Delivery, error) {
+	return nil, nil
+}
+func (NoopChannel) DeclareAndBind(exchange, kind, queue, key string, args ...map[string]interface{}) error {
+	return nil
 }

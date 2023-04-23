@@ -3,135 +3,145 @@ package server
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	"go.opentelemetry.io/otel/trace"
 	_ "go.uber.org/automaxprocs"
 
+	"template/internal/ctxw"
 	"template/pkg/async"
 	"template/pkg/msg"
 )
 
-var gw *msg.Writer
+var exp *msg.Writer
 
-// Update 更新全局参数
-func Update(ctx context.Context, opts ...func(*msg.WriterOption)) {
-	if gw == nil {
-		gw = msg.NewWriter(ctx, opts...)
-		return
+// New 更新全局参数
+func New(opts ...func(*msg.WriterOption)) {
+	tpOpts := []sdktrace.TracerProviderOption{
+		sdktrace.WithBatcher(msg.NewWriter(opts...)),
+		sdktrace.WithIDGenerator(msg.DefaultIDGenerator(ctxw.GetTraceID)),
 	}
-	for _, o := range opts {
-		o(&gw.WriterOption)
+	if res, err := resource.New(context.Background(),
+		resource.WithAttributes(semconv.ServiceNameKey.String("dcs")),
+		resource.WithFromEnv(),
+		resource.WithTelemetrySDK(),
+	); err == nil {
+		tpOpts = append(tpOpts, sdktrace.WithResource(res))
 	}
+	tp := sdktrace.NewTracerProvider(
+		tpOpts...,
+	)
+	otel.SetTracerProvider(tp)
 }
 
 // Error 写入错误
 func Error(ctx context.Context, err error) {
-	if gw == nil {
-		return
-	}
-	gw.Error(ctx, 1, err, "")
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(msg.LocateKey.String(msg.CallerFunc(0)))
+	span.RecordError(err)
 }
 
 // Errorf 写入错误和格式化消息
 func Errorf(ctx context.Context, err error, format string, a ...interface{}) {
-	if gw == nil {
-		return
-	}
-	gw.Error(ctx, 1, err, fmt.Sprintf(format, a...))
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(msg.LocateKey.String(msg.CallerFunc(0)))
+	span.RecordError(err,
+		trace.WithAttributes(attribute.Key("msg").String(fmt.Sprintf(format, a...))))
 }
 
 // ErrorWith 写入错误和消息
 func ErrorWith(ctx context.Context, err error, detail string) {
-	if gw == nil {
-		return
-	}
-	gw.Error(ctx, 1, err, detail)
+	span := trace.SpanFromContext(ctx)
+	span.SetAttributes(msg.LocateKey.String(msg.CallerFunc(0)))
+	span.RecordError(err,
+		trace.WithAttributes(attribute.Key("msg").String(detail)))
 }
 
 // Merge 根据trace_id为错误的消息增加一条数据,例如curl信息
-func Merge(ctx context.Context, msg string) {
-	if gw == nil {
+func Merge(ctx context.Context, info string) {
+	trace.SpanFromContext(ctx).AddEvent(msg.CurlEvent, trace.WithAttributes(attribute.Key("msg").String(info)))
+}
+
+func Resource(ctx context.Context, resource, resourceType string, subRes ...string) {
+	if resource == "" || resourceType == "" {
 		return
 	}
-	gw.MergeInfo(ctx, 1, msg)
+	attrs := []attribute.KeyValue{
+		msg.ResIDKey.String(resource),
+		msg.ResTypeKey.String(resourceType),
+	}
+	for i, v := range subRes {
+		switch i {
+		case 0:
+			attrs = append(attrs, msg.SubResIDKey.String(v))
+		case 1:
+			attrs = append(attrs, msg.SubResTypeKey.String(v))
+		default:
+		}
+	}
+	trace.SpanFromContext(ctx).SetAttributes(attrs...)
 }
 
 type ConfigParam struct {
-	URI        string        `json:"uri"`
-	RoutingKey string        `json:"routing_key"`
-	Exchange   string        `json:"exchange"`
-	Limit      uint64        `json:"limit"`
-	Enable     uint32        `json:"enable"` // 1 enable,2 unable
-	Topic      string        `json:"topic"`
-	Timeout    time.Duration `json:"timeout"`
+	URI        string `json:"uri"`
+	RoutingKey string `json:"routing_key"`
+	Exchange   string `json:"exchange"`
+	Enable     uint32 `json:"enable"` // 1 enable,2 unable
+	Topic      string `json:"topic"`
 }
 
 // UpdateConfig 更新配置文件
 func UpdateConfig(param *ConfigParam) error {
-	if gw == nil {
+	if exp == nil {
 		return nil
 	}
-	if err := updateMQ(param); err != nil {
-		return err
-	}
 	if param.Enable != 0 {
-		if param.Enable == 1 {
-			gw.Cfg.SetEnable(true)
-		} else if param.Enable == 2 {
-			gw.Cfg.SetEnable(false)
+		s := exp.Cfg.Status()
+		s.CheckChangeClose(func() {
+			exp.Channel = async.NoopChannel{}
+		})
+		s.CheckChangeOpen(func() {
+			if err := updateMQPublisher(param); err != nil {
+				log.Println(err)
+			}
+		})
+		switch param.Enable {
+		case 1:
+			exp.Cfg.SetEnable(true)
+		case 2:
+			exp.Cfg.SetEnable(false)
+		default:
 		}
-	}
-	if param.Limit != 0 {
-		gw.Cfg.SetLimit(param.Limit)
-	}
-	if param.Timeout != 0 {
-		gw.Cfg.SetTimeout(param.Timeout)
 	}
 	return nil
 }
 
 // GetConfig 获取配置
 func GetConfig() *ConfigParam {
-	if gw == nil {
+	if exp == nil {
 		return nil
 	}
 	var enable uint32 = 2
-	if gw.Cfg.Enable() {
+	if exp.Cfg.Enable() {
 		enable = 1
 	}
 	return &ConfigParam{
-		URI:        gw.Cfg.URI(),
-		RoutingKey: gw.Cfg.RoutingKey(),
-		Exchange:   gw.Cfg.Exchange(),
-		Limit:      gw.Cfg.Limit(),
+		URI:        exp.Cfg.URI(),
+		RoutingKey: exp.Cfg.RoutingKey(),
+		Exchange:   exp.Cfg.Exchange(),
 		Enable:     enable,
-		Topic:      gw.Cfg.Queue(),
-		Timeout:    gw.Cfg.Timeout(),
+		Topic:      exp.Cfg.Topic(),
 	}
 }
 
-// updatePublisher 更新生产者
-func updatePublisher(publisher async.Producer) error {
-	if gw == nil {
-		return nil
-	}
-	temp := gw.GetPublisher()
-	if err := gw.SetPublisher(publisher); err != nil {
-		return err
-	}
-	_ = temp.Close() // ignore err
-	return nil
-}
-
-func updateChannel(channel async.Channel) error {
-	if gw == nil {
-		return nil
-	}
-	return gw.SetChannel(channel)
-}
-
-func updateMQ(param *ConfigParam) error {
-	if gw == nil {
+func updateMQPublisher(param *ConfigParam) error {
+	if exp == nil {
 		return nil
 	}
 	if value, flag := configChange(param); flag.Flag != 0 {
@@ -139,33 +149,33 @@ func updateMQ(param *ConfigParam) error {
 			return err
 		}
 		if flag.HasStatus(1) {
-			gw.Cfg.SetURI(value.URI)
+			exp.Cfg.SetURI(value.URI)
 		}
 		if flag.HasStatus(1 << 1) {
-			gw.Cfg.SetExchange(value.exchange)
+			exp.Cfg.SetExchange(value.exchange)
 		}
 		if flag.HasStatus(1 << 2) {
-			gw.Cfg.SetRoutingKey(value.routingKey)
+			exp.Cfg.SetRoutingKey(value.routingKey)
 		}
 		if flag.HasStatus(1 << 3) {
-			gw.Cfg.SetQueue(value.queueName)
+			exp.Cfg.SetTopic(value.topic)
 		}
 	}
 	return nil
 }
 
 type mqConfigStatus struct {
-	queueName  string
 	URI        string
 	exchange   string
 	routingKey string
+	topic      string
 }
 
 func configChange(param *ConfigParam) (*mqConfigStatus, *msg.Status) {
 	flag := &msg.Status{}
 	temp := &mqConfigStatus{}
 
-	if uri := gw.Cfg.URI(); param.URI != "" {
+	if uri := exp.Cfg.URI(); param.URI != "" {
 		if uri != param.URI {
 			flag.AddStatus(1)
 		}
@@ -173,7 +183,7 @@ func configChange(param *ConfigParam) (*mqConfigStatus, *msg.Status) {
 	} else {
 		temp.URI = uri
 	}
-	if exchange := gw.Cfg.Exchange(); param.Exchange != "" {
+	if exchange := exp.Cfg.Exchange(); param.Exchange != "" {
 		if exchange != param.Exchange {
 			flag.AddStatus(1 << 1)
 		}
@@ -181,7 +191,7 @@ func configChange(param *ConfigParam) (*mqConfigStatus, *msg.Status) {
 	} else {
 		temp.exchange = exchange
 	}
-	if routingKey := gw.Cfg.RoutingKey(); param.RoutingKey != "" {
+	if routingKey := exp.Cfg.RoutingKey(); param.RoutingKey != "" {
 		if routingKey != param.RoutingKey {
 			flag.AddStatus(1 << 2)
 		}
@@ -189,30 +199,34 @@ func configChange(param *ConfigParam) (*mqConfigStatus, *msg.Status) {
 	} else {
 		temp.routingKey = routingKey
 	}
-	if queueName := gw.Cfg.Queue(); param.Topic != "" {
-		if queueName != param.Topic {
+	if topic := exp.Cfg.Topic(); param.Topic != "" {
+		if topic != param.Topic {
 			flag.AddStatus(1 << 3)
 		}
-		temp.queueName = param.Topic
+		temp.topic = param.Topic
 	} else {
-		temp.queueName = queueName
+		temp.topic = topic
 	}
+
 	return temp, flag
 }
 
 func setPublisher(value *mqConfigStatus) error {
+	if exp == nil {
+		return nil
+	}
 	channel, err := async.NewRabbitmqChannel(
-		async.WithAttempt(300),
-		async.WithInterval(2*time.Second),
 		async.WithURI(value.URI),
+		async.WithTx(true),
+		async.WithAttempt(12*60*24*2),
+		async.WithInterval(5*time.Second),
 	)
 	if err != nil {
 		return err
 	}
-	// 生产者
-	pub := async.NewTaskProducer()
-	if err = updateChannel(channel); err != nil {
+	if err = channel.DeclareAndBind(value.exchange, "direct", value.topic, value.routingKey); err != nil {
 		return err
 	}
-	return updatePublisher(pub)
+	exp.SetChannel(channel)
+	return nil
 }

@@ -11,25 +11,25 @@ var (
 	Chan              = make(chan Writer, 1024*1024)
 	LabelRequestCount = []*model.Label{
 		{
-			Name:  "api",
+			Name:  ApiLabelName,
 			Value: "request_count",
 		},
 	}
 	LabelRequestTotalLatency = []*model.Label{
 		{
-			Name:  "api",
-			Value: "request_average_latency",
+			Name:  ApiLabelName,
+			Value: "request_total_latency",
 		},
 	}
 	LabelMaxLatency = []*model.Label{
 		{
-			Name:  "api",
+			Name:  ApiLabelName,
 			Value: "request_max_latency",
 		},
 	}
 	LabelMinLatency = []*model.Label{
 		{
-			Name:  "api",
+			Name:  ApiLabelName,
 			Value: "request_min_latency",
 		},
 	}
@@ -50,6 +50,12 @@ const (
 const (
 	notTargetDataIndex = -1
 	allDayIndex        = -1
+)
+
+const (
+	RequestAverageLatency = "request_average_latency"
+	ApiLabelName          = "api"
+	PathLabelName         = "path"
 )
 
 // Run runs then runtime of metric
