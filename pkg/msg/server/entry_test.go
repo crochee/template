@@ -4,76 +4,57 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log"
-	"os"
 	"strconv"
 	"testing"
 	"time"
 
-	uuid "github.com/satori/go.uuid"
-	"github.com/spf13/viper"
+	"github.com/golang/mock/gomock"
+	jsoniter "github.com/json-iterator/go"
+	"github.com/streadway/amqp"
+	"go.opentelemetry.io/otel"
 
-	"template/config"
 	"template/pkg/async"
-	"template/pkg/logger"
 	"template/pkg/msg"
 )
 
-func TestMain(m *testing.M) {
-	// 初始化配置
-	configFile := "../../../config/anchor.yaml"
-	if err := config.LoadConfig(configFile); err != nil {
-		log.Fatal(err.Error())
-	}
-	os.Exit(m.Run())
-}
-
 func TestError(t *testing.T) {
-	ctx := logger.With(context.Background(),
-		logger.New(
-			logger.WithLevel(viper.GetString("log.level")),
-			logger.WithWriter(logger.SetWriter(true))),
-	)
-	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	ctl := gomock.NewController(t)
+	defer ctl.Finish()
+
+	cc := async.NewMockChannel(ctl)
+	cc.EXPECT().Publish(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(exchange, key string, mandatory, immediate bool, msg ...amqp.Publishing) error {
+			for _, v := range msg {
+				var data interface{}
+				if err := jsoniter.ConfigCompatibleWithStandardLibrary.Unmarshal(v.Body, &data); err != nil {
+					return err
+				}
+				log.Printf("ex:%s key:%s %v %v,%#v\n", exchange, key, mandatory, immediate, data)
+			}
+			return nil
+		}).AnyTimes()
+
+	p := async.NewMockProducer(ctl)
+	p.EXPECT().Publish(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, _ async.Channel, exchange, routingKey string, param interface{}) error {
+			log.Printf("ex:%s key:%s ,%s\n", exchange, routingKey, param.([]amqp.Publishing)[0].Body)
+			return nil
+		}).
+		AnyTimes()
+	New(func(o *msg.WriterOption) {
+		o.Publisher = p
+		o.Channel = cc
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	channel, err := async.NewRabbitmqChannel(async.WithURI(viper.GetString("rabbitmq.producer.fault.URI")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ctx1, cancel2 := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel2()
-	Update(ctx1, func(option *msg.WriterOption) {
-		option.Publisher = async.NewTaskProducer()
-		cfg := msg.NewCfgHandler()
-		cfg.SetQueue(viper.GetString("rabbitmq.producer.fault.queue"))
-		cfg.SetURI(viper.GetString("rabbitmq.producer.fault.URI"))
-		cfg.SetExchange(viper.GetString("rabbitmq.producer.fault.exchange"))
-		cfg.SetRoutingKey(viper.GetString("rabbitmq.producer.fault.routing-key"))
-		cfg.SetEnable(true)
-		cfg.SetTimeout(2 * time.Second)
-		cfg.SetLimit(10)
-		option.Cfg = cfg
-		option.Channel = channel
-		option.TraceID = func(ctx context.Context) string {
-			return uuid.NewV4().String()
-		}
-	})
-
+	ctx, span := otel.Tracer("server").Start(ctx, "TestError")
 	Merge(ctx, "debug")
-	for i := 0; i < 10007; i++ {
+	Resource(ctx, "12", "name", "34", "sub_name")
+	for i := 0; i < 1; i++ {
 		index := strconv.Itoa(i)
-		Errorf(context.Background(), errors.New(index), "io%d", i)
+		Errorf(ctx, errors.New(index), "io%d", i)
 	}
-	r := msg.NewReader(func(option *msg.ReaderOption) {
-		option.Handles = append(option.Handles, handleLog)
-	})
-	if err = r.Subscribe(ctx, channel, viper.GetString("rabbitmq.producer.fault.queue")); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func handleLog(metadata *msg.Metadata) error {
-	fmt.Printf("%+v\n", metadata)
-	return nil
+	span.End()
+	time.Sleep(6 * time.Second)
 }
