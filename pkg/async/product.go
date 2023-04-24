@@ -14,6 +14,8 @@ import (
 	"template/pkg/validator"
 )
 
+//go:generate mockgen -source=./product.go -destination=./product_mock.go -package=async
+
 type Producer interface {
 	Publish(ctx context.Context, channel Channel, exchange, routingKey string, param interface{}) error
 	io.Closer

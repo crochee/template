@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -18,12 +17,6 @@ type ProduceConfig struct {
 	// rabbit 的exchange
 	// in: query
 	Exchange string `json:"exchange"`
-	// 消息队列限制
-	// in: query
-	Limit uint64 `json:"limit"`
-	// 超时时间
-	// in: query
-	Timeout time.Duration `json:"timeout"`
 	// 消息队列的【启动与关闭】- 1激活,2关闭
 	// in: query
 	Enable uint32 `json:"enable"`
@@ -76,8 +69,6 @@ func GetProduce(ctx context.Context) (*ProduceConfig, error) {
 		URI:        param.URI,
 		RoutingKey: param.RoutingKey,
 		Exchange:   param.Exchange,
-		Limit:      param.Limit,
-		Timeout:    param.Timeout,
 		Enable:     param.Enable,
 		Topic:      param.Topic,
 	}, nil
@@ -89,10 +80,8 @@ func UpdateProduce(ctx context.Context, param *ProduceConfig) error {
 		URI:        param.URI,
 		RoutingKey: param.RoutingKey,
 		Exchange:   param.Exchange,
-		Limit:      param.Limit,
 		Enable:     param.Enable,
 		Topic:      param.Topic,
-		Timeout:    param.Timeout,
 	}); err != nil {
 		return err
 	}
