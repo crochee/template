@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql/driver"
 	"fmt"
-	"time"
 
 	"gorm.io/datatypes"
 
@@ -26,15 +25,13 @@ func RegisterClient(ctx context.Context, f ClientFunc) error {
 
 // ProduceConsumeConf 生产消费配置信息表
 type ProduceConsumeConf struct {
-	ID         uint64        `json:"id" gorm:"primary_key:id;comment:主键id"`
-	Topic      string        `json:"topic" gorm:"type:varchar(255);not null;comment:消息队列的topic"`
-	URI        string        `json:"uri" gorm:"type:varchar(255);not null;comment:rabbit的地址"`
-	Exchange   string        `json:"exchange" gorm:"type:varchar(255);not null;comment:rabbit的exchange"`
-	RoutingKey string        `json:"routing_key" gorm:"type:varchar(255);not null;comment:rabbit的routing_key"`
-	Limit      uint64        `json:"limit" gorm:"not null;comment:消息队列限制数量"`
-	Timeout    time.Duration `json:"timeout" gorm:"not null;comment:超时时间"`
-	Enable     uint32        `json:"enable" gorm:"not null;comment:消息队列的【启动与关闭】- 1激活,2关闭"`
-	ClientType ClientType    `json:"client_type" gorm:"not null;index:idx_client_type_deleted,unique;comment:链接的类型"`
+	ID         uint64     `json:"id" gorm:"primary_key:id;comment:主键id"`
+	Topic      string     `json:"topic" gorm:"type:varchar(255);not null;comment:消息队列的topic"`
+	URI        string     `json:"uri" gorm:"type:varchar(255);not null;comment:rabbit的地址"`
+	Exchange   string     `json:"exchange" gorm:"type:varchar(255);not null;comment:rabbit的exchange"`
+	RoutingKey string     `json:"routing_key" gorm:"type:varchar(255);not null;comment:rabbit的routing_key"`
+	Enable     uint32     `json:"enable" gorm:"not null;comment:消息队列的【启动与关闭】- 1激活,2关闭"`
+	ClientType ClientType `json:"client_type" gorm:"not null;index:idx_client_type_deleted,unique;comment:链接的类型"`
 
 	ExchangeArgs datatypes.JSON `json:"exchange_args" gorm:"column:exchange_args;type:json;comment:交换机参数"`
 	QueueArgs    datatypes.JSON `json:"queue_args" gorm:"column:queue_args;type:json;comment:队列参数"`

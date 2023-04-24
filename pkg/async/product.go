@@ -8,7 +8,7 @@ import (
 
 	"github.com/ThreeDotsLabs/watermill"
 	"github.com/ThreeDotsLabs/watermill/message"
-	"github.com/json-iterator/go"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/streadway/amqp"
 
 	"template/pkg/validator"
@@ -85,5 +85,15 @@ func (t *TaskProducer) Publish(ctx context.Context, channel Channel, exchange, r
 
 func (t *TaskProducer) Close() error {
 	t.wg.Wait()
+	return nil
+}
+
+type NoopProducer struct{}
+
+func (NoopProducer) Publish(ctx context.Context, channel Channel, exchange, routingKey string, param interface{}) error {
+	return nil
+}
+
+func (NoopProducer) Close() error {
 	return nil
 }

@@ -213,11 +213,75 @@ func (m *memoryStats) Filter(f Filter) []*model.MetricFamily {
 		return metricsData
 	}
 
+	labelGroups := m.labelGroupByName(f.Labels)
 	for _, v := range metricsData {
-		m.filterMetricsByLabels(f.Labels, v)
+		m.filterMetricsByLabels(labelGroups, v)
 	}
 	// 根据label过滤监控数据
 	return metricsData
+}
+
+func (m *memoryStats) labelGroupByName(labels model.Labels) []model.Labels {
+	// 相同name标签进行||，不同name进行&&
+	nameGroups := make(map[string]map[string]struct{})
+	for _, label := range labels {
+		if label.Name == ApiLabelName && label.Value == RequestAverageLatency {
+			for _, value := range []string{LabelRequestCount[0].Value, LabelRequestTotalLatency[0].Value} {
+				if _, ok := nameGroups[label.Name]; ok {
+					nameGroups[label.Name][value] = struct{}{}
+				} else {
+					nameGroups[label.Name] = map[string]struct{}{
+						value: {},
+					}
+				}
+			}
+		} else {
+			if _, ok := nameGroups[label.Name]; ok {
+				nameGroups[label.Name][label.Value] = struct{}{}
+			} else {
+				nameGroups[label.Name] = map[string]struct{}{
+					label.Value: {},
+				}
+			}
+		}
+	}
+
+	nameLabels := make([]model.Labels, 0, len(nameGroups))
+	for name, groups := range nameGroups {
+		temp := make(model.Labels, 0, len(groups))
+		for group := range groups {
+			temp = append(temp, &model.Label{
+				Name:  name,
+				Value: group,
+			})
+		}
+		nameLabels = append(nameLabels, temp)
+	}
+	result := make([]model.Labels, 0)
+	switch len(nameLabels) {
+	case 1:
+		for _, v := range nameLabels[0] {
+			result = append(result, model.Labels{&model.Label{
+				Name:  v.Name,
+				Value: v.Value,
+			}})
+		}
+	case 2:
+		for _, v0 := range nameLabels[0] {
+			for _, v1 := range nameLabels[1] {
+				result = append(result, model.Labels{&model.Label{
+					Name:  v0.Name,
+					Value: v0.Value,
+				}, &model.Label{
+					Name:  v1.Name,
+					Value: v1.Value,
+				}})
+			}
+		}
+	default:
+		panic("not implement")
+	}
+	return result
 }
 
 // getMetricsByDay 通过天数获取监控数据
@@ -235,13 +299,15 @@ func (m *memoryStats) getMetricsByDay(dayIndexes []int) []*model.MetricFamily {
 }
 
 // getMetricsByLabels 通过标签过滤监控数据
-func (m *memoryStats) filterMetricsByLabels(labels model.Labels, metricFamily *model.MetricFamily) {
+func (m *memoryStats) filterMetricsByLabels(labelGroups []model.Labels, metricFamily *model.MetricFamily) {
 	res := make([]*model.Metric, 0, len(metricFamily.Metrics))
 	for _, metric := range metricFamily.Metrics {
-		if !model.More(metric.Labels, labels) {
-			continue
+		for _, labels := range labelGroups {
+			if model.More(metric.Labels, labels) {
+				res = append(res, metric)
+				break
+			}
 		}
-		res = append(res, metric)
 	}
 	// 更新结果
 	metricFamily.Metrics = res

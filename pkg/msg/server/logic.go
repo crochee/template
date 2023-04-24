@@ -40,8 +40,6 @@ func GetProduce(ctx context.Context) (*ProduceConfig, error) {
 		URI:        param.URI,
 		Exchange:   param.Exchange,
 		RoutingKey: param.RoutingKey,
-		Limit:      param.Limit,
-		Timeout:    param.Timeout,
 		Enable:     param.Enable,
 		ClientType: FaultProducer,
 	}
@@ -66,12 +64,6 @@ func GetProduce(ctx context.Context) (*ProduceConfig, error) {
 		}
 		if pcc.RoutingKey != tempPcc.RoutingKey {
 			updates["routing_key"] = tempPcc.RoutingKey
-		}
-		if pcc.Limit != tempPcc.Limit {
-			updates["limit"] = tempPcc.Limit
-		}
-		if pcc.Timeout != tempPcc.Timeout {
-			updates["timeout"] = tempPcc.Timeout
 		}
 		if pcc.Enable != tempPcc.Enable {
 			updates["enable"] = tempPcc.Enable
@@ -117,8 +109,6 @@ func InitProduceConfig(ctx context.Context) (*ProduceConfig, error) {
 		URI:        pcc.URI,
 		RoutingKey: pcc.RoutingKey,
 		Exchange:   pcc.Exchange,
-		Limit:      pcc.Limit,
-		Timeout:    pcc.Timeout,
 		Enable:     pcc.Enable,
 		Topic:      pcc.Topic,
 	}, nil

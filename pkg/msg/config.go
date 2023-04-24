@@ -3,103 +3,46 @@ package msg
 
 import (
 	"sync/atomic"
-	"time"
 )
 
 type CfgHandler interface {
-	LogicalCfg
-	NetCfg
-}
-
-type LogicalCfg interface {
-	SetLimit(uint64)
-	Limit() uint64
-	SetTimeout(time.Duration)
-	Timeout() time.Duration
-	SetEnable(bool)
+	Status() *switchStatus
 	Enable() bool
-	OUtEnable() *switchStatus
-}
-
-type NetCfg interface {
-	Queue() string
-	SetQueue(string)
+	SetEnable(bool)
 	Exchange() string
 	SetExchange(string)
 	RoutingKey() string
 	SetRoutingKey(string)
 	URI() string
 	SetURI(string)
+	Topic() string
+	SetTopic(string)
 }
 
 func NewCfgHandler() CfgHandler {
-	s := struct {
-		LogicalCfg
-		NetCfg
-	}{
-		&standardCfg{enableStatus: NewSwitchStatus()},
-		&netCfg{},
+	return &netCfg{
+		enableStatus: NewSwitchStatus(),
 	}
-	s.SetLimit(10)
-	s.SetTimeout(5 * time.Second)
-	return s
-}
-
-type standardCfg struct {
-	enableStatus *switchStatus
-	limit        uint64
-	timeout      atomic.Value
-}
-
-func (s *standardCfg) SetLimit(limit uint64) {
-	atomic.StoreUint64(&s.limit, limit)
-}
-
-func (s *standardCfg) Limit() uint64 {
-	return atomic.LoadUint64(&s.limit)
-}
-
-func (s *standardCfg) SetTimeout(timeout time.Duration) {
-	s.timeout.Store(timeout)
-}
-
-func (s *standardCfg) Timeout() time.Duration {
-	v, ok := s.timeout.Load().(time.Duration)
-	if !ok {
-		return 0
-	}
-	return v
-}
-
-func (s *standardCfg) SetEnable(enable bool) {
-	s.enableStatus.Input(enable)
-}
-
-func (s *standardCfg) Enable() bool {
-	return s.enableStatus.Output()
-}
-
-func (s *standardCfg) OUtEnable() *switchStatus {
-	return s.enableStatus
 }
 
 type netCfg struct {
-	queueName  atomic.Value
-	exchange   atomic.Value
-	routingKey atomic.Value
-	uri        atomic.Value
+	enableStatus *switchStatus
+	exchange     atomic.Value
+	routingKey   atomic.Value
+	uri          atomic.Value
+	topic        atomic.Value
 }
 
-func (n *netCfg) Queue() string {
-	v, ok := n.queueName.Load().(string)
-	if !ok {
-		return ""
-	}
-	return v
+func (n *netCfg) Status() *switchStatus {
+	return n.enableStatus
 }
 
-func (n *netCfg) SetQueue(topic string) {
-	n.queueName.Store(topic)
+func (n *netCfg) Enable() bool {
+	return n.enableStatus.Output()
+}
+
+func (n *netCfg) SetEnable(v bool) {
+	n.enableStatus.Input(v)
 }
 
 func (n *netCfg) Exchange() string {
@@ -136,4 +79,16 @@ func (n *netCfg) URI() string {
 
 func (n *netCfg) SetURI(s string) {
 	n.uri.Store(s)
+}
+
+func (n *netCfg) Topic() string {
+	v, ok := n.topic.Load().(string)
+	if !ok {
+		return ""
+	}
+	return v
+}
+
+func (n *netCfg) SetTopic(s string) {
+	n.topic.Store(s)
 }
