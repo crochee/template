@@ -12,12 +12,17 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
-	_ "go.uber.org/automaxprocs"
+	"go.uber.org/automaxprocs/maxprocs"
 
 	"template/internal/ctxw"
 	"template/pkg/async"
 	"template/pkg/msg"
 )
+
+// Automatically set GOMAXPROCS to match Linux container CPU quota.
+func init() {
+	maxprocs.Set(maxprocs.Logger(nil))
+}
 
 var exp *msg.Writer
 
