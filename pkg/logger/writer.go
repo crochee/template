@@ -6,7 +6,6 @@ import (
 	"sync"
 
 	"github.com/mattn/go-colorable"
-	"github.com/spf13/viper"
 	"gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -16,9 +15,8 @@ var (
 )
 
 // SetWriter return a io.Writer
-func SetWriter(console bool) io.Writer {
+func SetWriter(console bool, path string) io.Writer {
 	var writerList []io.Writer
-	path := viper.GetString("log.path")
 	if console {
 		writerList = append(writerList, colorable.NewColorableStdout())
 		if path == "" {
