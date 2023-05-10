@@ -46,6 +46,46 @@ func (n *DeletedAt) UnmarshalJSON(b []byte) error {
 	return err
 }
 
+func (d DeletedAt) UpdateClauses(field *schema.Field) []clause.Interface {
+	return []clause.Interface{SoftDeletedAtUpdateClause{Field: field}}
+}
+
+type SoftDeletedAtUpdateClause struct {
+	Field *schema.Field
+}
+
+func (s SoftDeletedAtUpdateClause) Name() string {
+	return ""
+}
+
+func (s SoftDeletedAtUpdateClause) Build(clause.Builder) {
+}
+
+func (s SoftDeletedAtUpdateClause) MergeClause(*clause.Clause) {
+}
+
+func (s SoftDeletedAtUpdateClause) ModifyStatement(stmt *gorm.Statement) {
+	if _, ok := stmt.Clauses["soft_delete_enabled"]; ok || stmt.Statement.Unscoped {
+		return
+	}
+	if c, ok := stmt.Clauses["WHERE"]; ok {
+		if where, ok := c.Expression.(clause.Where); ok && len(where.Exprs) > 1 {
+			for _, expr := range where.Exprs {
+				if orCond, ok := expr.(clause.OrConditions); ok && len(orCond.Exprs) == 1 {
+					where.Exprs = []clause.Expression{clause.And(where.Exprs...)}
+					c.Expression = where
+					stmt.Clauses["WHERE"] = c
+					break
+				}
+			}
+		}
+	}
+	stmt.AddClause(clause.Where{Exprs: []clause.Expression{
+		clause.Eq{Column: clause.Column{Table: clause.CurrentTable, Name: s.Field.DBName}, Value: 0},
+	}})
+	stmt.Clauses["soft_delete_enabled"] = clause.Clause{}
+}
+
 func (DeletedAt) QueryClauses(f *schema.Field) []clause.Interface {
 	return []clause.Interface{SoftDeleteQueryClause{Field: f}}
 }
@@ -110,7 +150,7 @@ func (sd SoftDeleteDeleteClause) ModifyStatement(stmt *gorm.Statement) {
 		return
 	}
 	var clauseSet clause.Set
-	curTime := stmt.DB.NowFunc()
+	curTime := stmt.NowFunc()
 	clauseSet = append(clauseSet, clause.Assignment{Column: clause.Column{Name: sd.Field.DBName}, Value: curTime})
 
 	if _, ok := stmt.Schema.FieldsByName["Deleted"]; ok {
@@ -149,8 +189,8 @@ func (sd SoftDeleteDeleteClause) ModifyStatement(stmt *gorm.Statement) {
 		}
 	}
 
-	if _, ok := stmt.Clauses["WHERE"]; !stmt.DB.AllowGlobalUpdate && !ok {
-		_ = stmt.DB.AddError(gorm.ErrMissingWhereClause)
+	if _, ok := stmt.Clauses["WHERE"]; !stmt.AllowGlobalUpdate && !ok {
+		_ = stmt.AddError(gorm.ErrMissingWhereClause)
 	} else {
 		SoftDeleteQueryClause(sd).ModifyStatement(stmt)
 	}
