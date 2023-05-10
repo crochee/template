@@ -118,7 +118,7 @@ func (s SoftDeleteDeletedClause) ModifyStatement(stmt *gorm.Statement) {
 		Column: clause.Column{Name: s.Field.DBName},
 		Value:  gorm.Expr("`id`"),
 	}
-	curTime := stmt.DB.NowFunc()
+	curTime := stmt.NowFunc()
 	_, idOk := stmt.Schema.FieldsByDBName["id"]
 	if !idOk {
 		assignment.Value = uint64(curTime.UnixNano())
@@ -152,8 +152,8 @@ func (s SoftDeleteDeletedClause) ModifyStatement(stmt *gorm.Statement) {
 			}
 		}
 	}
-	if _, ok := stmt.Clauses["WHERE"]; !stmt.DB.AllowGlobalUpdate && !ok {
-		_ = stmt.DB.AddError(gorm.ErrMissingWhereClause)
+	if _, ok := stmt.Clauses["WHERE"]; !stmt.AllowGlobalUpdate && !ok {
+		_ = stmt.AddError(gorm.ErrMissingWhereClause)
 	} else {
 		SoftDeletedQueryClause(s).ModifyStatement(stmt)
 	}

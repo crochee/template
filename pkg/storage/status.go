@@ -30,7 +30,7 @@ func (StatusQueryClause) MergeClause(*clause.Clause) {
 }
 
 func (StatusQueryClause) ModifyStatement(stmt *gorm.Statement) {
-	if _, ok := stmt.Clauses["soft_delete_enabled"]; ok {
+	if _, ok := stmt.Clauses["soft_delete_enabled"]; ok || stmt.Statement.Unscoped {
 		return
 	}
 	if c, ok := stmt.Clauses["WHERE"]; ok {
@@ -67,12 +67,12 @@ func (StatusDeleteDeleteClause) MergeClause(*clause.Clause) {
 }
 
 func (s StatusDeleteDeleteClause) ModifyStatement(stmt *gorm.Statement) {
-	if stmt.SQL.String() != "" {
+	if stmt.SQL.Len() != 0 || stmt.Statement.Unscoped {
 		return
 	}
 
 	var clauseSet clause.Set
-	curTime := stmt.DB.NowFunc()
+	curTime := stmt.NowFunc()
 	if !strings.Contains(s.Field.Comment, "skip_delete") {
 		clauseSet = append(clauseSet, clause.Assignment{Column: clause.Column{Name: s.Field.DBName}, Value: "deleted"})
 	}
@@ -112,8 +112,8 @@ func (s StatusDeleteDeleteClause) ModifyStatement(stmt *gorm.Statement) {
 		}
 	}
 
-	if _, ok := stmt.Clauses["WHERE"]; !stmt.DB.AllowGlobalUpdate && !ok {
-		_ = stmt.DB.AddError(gorm.ErrMissingWhereClause)
+	if _, ok := stmt.Clauses["WHERE"]; !stmt.AllowGlobalUpdate && !ok {
+		_ = stmt.AddError(gorm.ErrMissingWhereClause)
 	} else {
 		StatusQueryClause(s).ModifyStatement(stmt)
 	}
