@@ -14,6 +14,7 @@ import (
 	"github.com/streadway/amqp"
 	"go.opentelemetry.io/otel"
 
+	"template/internal/ctxw"
 	"template/pkg/async"
 	"template/pkg/msg"
 )
@@ -42,7 +43,7 @@ func TestError(t *testing.T) {
 			return nil
 		}).
 		AnyTimes()
-	New(func(o *msg.WriterOption) {
+	New(ctxw.GetTraceID, func(o *msg.WriterOption) {
 		o.Publisher = p
 		o.Channel = cc
 	})

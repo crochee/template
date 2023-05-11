@@ -8,13 +8,10 @@ import (
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/automaxprocs/maxprocs"
 
-	"template/internal/ctxw"
 	"template/pkg/async"
 	"template/pkg/msg"
 )
@@ -27,17 +24,10 @@ func init() {
 var exp *msg.Writer
 
 // New 更新全局参数
-func New(opts ...func(*msg.WriterOption)) {
+func New(getTraceID func(context.Context) string, opts ...func(*msg.WriterOption)) {
 	tpOpts := []sdktrace.TracerProviderOption{
 		sdktrace.WithBatcher(msg.NewWriter(opts...)),
-		sdktrace.WithIDGenerator(msg.DefaultIDGenerator(ctxw.GetTraceID)),
-	}
-	if res, err := resource.New(context.Background(),
-		resource.WithAttributes(semconv.ServiceNameKey.String("dcs")),
-		resource.WithFromEnv(),
-		resource.WithTelemetrySDK(),
-	); err == nil {
-		tpOpts = append(tpOpts, sdktrace.WithResource(res))
+		sdktrace.WithIDGenerator(msg.DefaultIDGenerator(getTraceID)),
 	}
 	tp := sdktrace.NewTracerProvider(
 		tpOpts...,
