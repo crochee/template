@@ -57,7 +57,7 @@ type Pagination struct {
 	PageSize int `form:"page_size,default=20" json:"page_size" binding:"omitempty,min=-1"`
 	// 总计条目
 	// Example: 300
-	Total int64 `json:"total"`
+	Total int64 `form:"-" json:"total"`
 }
 
 func (p *Pagination) Build(_ context.Context, query *gorm.DB, _ ...SQLOption) *gorm.DB {
@@ -80,7 +80,7 @@ type Sort struct {
 	// 排序信息【格式:字段 排序方式】,desc-降序,asc-升序,默认降序排列,例如:[created_at asc]
 	// 支持多字段同时排序,例如:[created_at desc,created_at asc]
 	// 给多个字段排序 created_at, id asc => order by created_at desc, id asc
-	SortField string `form:"sort" json:"sort" binding:"omitempty,order"`
+	SortField string `form:"sort" json:"-" binding:"omitempty,order"`
 }
 
 func (s *Sort) Build(_ context.Context, query *gorm.DB, _ ...SQLOption) *gorm.DB {
