@@ -81,6 +81,14 @@ func Test_TimeUTCToShanghaiCodecDecode(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:  "zero",
+			input: `{"t_1":"2020-11-13T15:16:17.000000018Z","t_2":""}`,
+			want: TestString{
+				T1: time.Date(2020, 11, 13, 15, 16, 17, 18, time.UTC),
+			},
+			wantErr: false,
+		},
+		{
 			name:  "error",
 			input: (`{"t_1":"2020-11-13T15:16:17.000000018Z","t_2":"2020-11-13 15:16:171"}`),
 			want: TestString{
