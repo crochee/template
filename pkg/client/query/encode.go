@@ -162,7 +162,7 @@ func reflectValue(values url.Values, val reflect.Value, scope string) error {
 		}
 
 		sv := val.Field(i)
-		tag := sf.Tag.Get("url")
+		tag := sf.Tag.Get("form")
 		if tag == "-" {
 			continue
 		}
