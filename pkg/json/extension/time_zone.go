@@ -64,7 +64,7 @@ func (extension *timeZoneCodec) UpdateStructDescriptor(structDescriptor *jsonite
 			}}
 			binding.Decoder = &funcDecoder{func(ptr unsafe.Pointer, iter *jsoniter.Iterator) {
 				val := iter.ReadString()
-				if val == "null" {
+				if val == "null" || val == "" {
 					return
 				}
 				switch tf := strings.ToLower(timeFormat); tf {
