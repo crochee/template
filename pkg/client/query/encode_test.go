@@ -34,13 +34,13 @@ func TestValues_Default(t *testing.T) {
 		// bool-specific options
 		{
 			struct {
-				V int `url:",default=10"`
+				V int `form:",default=10"`
 			}{0},
 			url.Values{"V": {"10"}},
 		},
 		{
 			struct {
-				V int `url:",default=20"`
+				V int `form:",default=20"`
 			}{0},
 			url.Values{"V": {"20"}},
 		},
@@ -73,13 +73,13 @@ func TestValues_BasicTypes(t *testing.T) {
 		// bool-specific options
 		{
 			struct {
-				V bool `url:",int"`
+				V bool `form:",int"`
 			}{false},
 			url.Values{"V": {"0"}},
 		},
 		{
 			struct {
-				V bool `url:",int"`
+				V bool `form:",int"`
 			}{true},
 			url.Values{"V": {"1"}},
 		},
@@ -93,19 +93,19 @@ func TestValues_BasicTypes(t *testing.T) {
 		},
 		{
 			struct {
-				V time.Time `url:",unix"`
+				V time.Time `form:",unix"`
 			}{time.Date(2000, 1, 1, 12, 34, 56, 0, time.UTC)},
 			url.Values{"V": {"946730096"}},
 		},
 		{
 			struct {
-				V time.Time `url:",unixmilli"`
+				V time.Time `form:",unixmilli"`
 			}{time.Date(2000, 1, 1, 12, 34, 56, 0, time.UTC)},
 			url.Values{"V": {"946730096000"}},
 		},
 		{
 			struct {
-				V time.Time `url:",unixnano"`
+				V time.Time `form:",unixnano"`
 			}{time.Date(2000, 1, 1, 12, 34, 56, 0, time.UTC)},
 			url.Values{"V": {"946730096000000000"}},
 		},
@@ -174,31 +174,31 @@ func TestValues_Slices(t *testing.T) {
 		},
 		{
 			struct {
-				V []string `url:",comma"`
+				V []string `form:",comma"`
 			}{[]string{"a", "b"}},
 			url.Values{"V": {"a,b"}},
 		},
 		{
 			struct {
-				V []string `url:",space"`
+				V []string `form:",space"`
 			}{[]string{"a", "b"}},
 			url.Values{"V": {"a b"}},
 		},
 		{
 			struct {
-				V []string `url:",semicolon"`
+				V []string `form:",semicolon"`
 			}{[]string{"a", "b"}},
 			url.Values{"V": {"a;b"}},
 		},
 		{
 			struct {
-				V []string `url:",brackets"`
+				V []string `form:",brackets"`
 			}{[]string{"a", "b"}},
 			url.Values{"V[]": {"a", "b"}},
 		},
 		{
 			struct {
-				V []string `url:",numbered"`
+				V []string `form:",numbered"`
 			}{[]string{"a", "b"}},
 			url.Values{"V.1": {"a"}, "V.2": {"b"}},
 		},
@@ -214,31 +214,31 @@ func TestValues_Slices(t *testing.T) {
 		},
 		{
 			struct {
-				V [2]string `url:",comma"`
+				V [2]string `form:",comma"`
 			}{[2]string{"a", "b"}},
 			url.Values{"V": {"a,b"}},
 		},
 		{
 			struct {
-				V [2]string `url:",space"`
+				V [2]string `form:",space"`
 			}{[2]string{"a", "b"}},
 			url.Values{"V": {"a b"}},
 		},
 		{
 			struct {
-				V [2]string `url:",semicolon"`
+				V [2]string `form:",semicolon"`
 			}{[2]string{"a", "b"}},
 			url.Values{"V": {"a;b"}},
 		},
 		{
 			struct {
-				V [2]string `url:",brackets"`
+				V [2]string `form:",brackets"`
 			}{[2]string{"a", "b"}},
 			url.Values{"V[]": {"a", "b"}},
 		},
 		{
 			struct {
-				V [2]string `url:",numbered"`
+				V [2]string `form:",numbered"`
 			}{[2]string{"a", "b"}},
 			url.Values{"V.1": {"a"}, "V.2": {"b"}},
 		},
@@ -266,7 +266,7 @@ func TestValues_Slices(t *testing.T) {
 		// slice of bools with additional options
 		{
 			struct {
-				V []bool `url:",space,int"`
+				V []bool `form:",space,int"`
 			}{[]bool{true, false}},
 			url.Values{"V": {"1 0"}},
 		},
@@ -279,13 +279,13 @@ func TestValues_Slices(t *testing.T) {
 
 func TestValues_NestedTypes(t *testing.T) {
 	type SubNested struct {
-		Value string `url:"value"`
+		Value string `form:"value"`
 	}
 
 	type Nested struct {
-		A   SubNested  `url:"a"`
-		B   *SubNested `url:"b"`
-		Ptr *SubNested `url:"ptr,omitempty"`
+		A   SubNested  `form:"a"`
+		B   *SubNested `form:"b"`
+		Ptr *SubNested `form:"ptr,omitempty"`
 	}
 
 	tests := []struct {
@@ -294,7 +294,7 @@ func TestValues_NestedTypes(t *testing.T) {
 	}{
 		{
 			struct {
-				Nest Nested `url:"nest"`
+				Nest Nested `form:"nest"`
 			}{
 				Nested{
 					A: SubNested{
@@ -309,7 +309,7 @@ func TestValues_NestedTypes(t *testing.T) {
 		},
 		{
 			struct {
-				Nest Nested `url:"nest"`
+				Nest Nested `form:"nest"`
 			}{
 				Nested{
 					Ptr: &SubNested{
@@ -344,26 +344,26 @@ func TestValues_OmitEmpty(t *testing.T) {
 		{struct{ v string }{}, url.Values{}}, // non-exported field
 		{
 			struct {
-				V string `url:",omitempty"`
+				V string `form:",omitempty"`
 			}{},
 			url.Values{},
 		},
 		{
 			struct {
-				V string `url:"-"`
+				V string `form:"-"`
 			}{},
 			url.Values{},
 		},
 		{
 			struct {
-				V string `url:"omitempty"` // actually named omitempty
+				V string `form:"omitempty"` // actually named omitempty
 			}{},
 			url.Values{"omitempty": {""}},
 		},
 		{
 			// include value for a non-nil pointer to an empty value
 			struct {
-				V *string `url:",omitempty"`
+				V *string `form:",omitempty"`
 			}{&str},
 			url.Values{"V": {""}},
 		},
@@ -458,13 +458,13 @@ func TestValues_CustomEncodingSlice(t *testing.T) {
 	}{
 		{
 			struct {
-				V customEncodedStrings `url:"v"`
+				V customEncodedStrings `form:"v"`
 			}{},
 			url.Values{},
 		},
 		{
 			struct {
-				V customEncodedStrings `url:"v"`
+				V customEncodedStrings `form:"v"`
 			}{[]string{"a", "b"}},
 			url.Values{"v.0": {"a"}, "v.1": {"b"}},
 		},
@@ -472,13 +472,13 @@ func TestValues_CustomEncodingSlice(t *testing.T) {
 		// pointers to custom encoded types
 		{
 			struct {
-				V *customEncodedStrings `url:"v"`
+				V *customEncodedStrings `form:"v"`
 			}{},
 			url.Values{},
 		},
 		{
 			struct {
-				V *customEncodedStrings `url:"v"`
+				V *customEncodedStrings `form:"v"`
 			}{(*customEncodedStrings)(&[]string{"a", "b"})},
 			url.Values{"v.0": {"a"}, "v.1": {"b"}},
 		},
@@ -534,19 +534,19 @@ func TestValues_CustomEncodingInt(t *testing.T) {
 	}{
 		{
 			struct {
-				V customEncodedInt `url:"v"`
+				V customEncodedInt `form:"v"`
 			}{},
 			url.Values{"v": {"_0"}},
 		},
 		{
 			struct {
-				V customEncodedInt `url:"v,omitempty"`
+				V customEncodedInt `form:"v,omitempty"`
 			}{zero},
 			url.Values{},
 		},
 		{
 			struct {
-				V customEncodedInt `url:"v"`
+				V customEncodedInt `form:"v"`
 			}{one},
 			url.Values{"v": {"_1"}},
 		},
@@ -554,25 +554,25 @@ func TestValues_CustomEncodingInt(t *testing.T) {
 		// pointers to custom encoded types
 		{
 			struct {
-				V *customEncodedInt `url:"v"`
+				V *customEncodedInt `form:"v"`
 			}{},
 			url.Values{"v": {"_0"}},
 		},
 		{
 			struct {
-				V *customEncodedInt `url:"v,omitempty"`
+				V *customEncodedInt `form:"v,omitempty"`
 			}{},
 			url.Values{},
 		},
 		{
 			struct {
-				V *customEncodedInt `url:"v,omitempty"`
+				V *customEncodedInt `form:"v,omitempty"`
 			}{&zero},
 			url.Values{"v": {"_0"}},
 		},
 		{
 			struct {
-				V *customEncodedInt `url:"v"`
+				V *customEncodedInt `form:"v"`
 			}{&one},
 			url.Values{"v": {"_1"}},
 		},
@@ -611,19 +611,19 @@ func TestValues_CustomEncodingPointer(t *testing.T) {
 		// they don't implement the encoder interface.
 		{
 			struct {
-				V customEncodedIntPtr `url:"v"`
+				V customEncodedIntPtr `form:"v"`
 			}{},
 			url.Values{"v": {"0"}},
 		},
 		{
 			struct {
-				V customEncodedIntPtr `url:"v,omitempty"`
+				V customEncodedIntPtr `form:"v,omitempty"`
 			}{},
 			url.Values{},
 		},
 		{
 			struct {
-				V customEncodedIntPtr `url:"v"`
+				V customEncodedIntPtr `form:"v"`
 			}{one},
 			url.Values{"v": {"1"}},
 		},
@@ -631,31 +631,31 @@ func TestValues_CustomEncodingPointer(t *testing.T) {
 		// pointers to custom encoded types.
 		{
 			struct {
-				V *customEncodedIntPtr `url:"v"`
+				V *customEncodedIntPtr `form:"v"`
 			}{},
 			url.Values{"v": {"undefined"}},
 		},
 		{
 			struct {
-				V *customEncodedIntPtr `url:"v,omitempty"`
+				V *customEncodedIntPtr `form:"v,omitempty"`
 			}{},
 			url.Values{},
 		},
 		{
 			struct {
-				V *customEncodedIntPtr `url:"v"`
+				V *customEncodedIntPtr `form:"v"`
 			}{&zero},
 			url.Values{"v": {"_0"}},
 		},
 		{
 			struct {
-				V *customEncodedIntPtr `url:"v,omitempty"`
+				V *customEncodedIntPtr `form:"v,omitempty"`
 			}{&zero},
 			url.Values{"v": {"_0"}},
 		},
 		{
 			struct {
-				V *customEncodedIntPtr `url:"v"`
+				V *customEncodedIntPtr `form:"v"`
 			}{&one},
 			url.Values{"v": {"_1"}},
 		},
