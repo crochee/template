@@ -61,7 +61,9 @@ type Pagination struct {
 }
 
 func (p *Pagination) Build(_ context.Context, query *gorm.DB, _ ...SQLOption) *gorm.DB {
-	query.Count(&p.Total)
+	if p.Total == 0 {
+		query.Count(&p.Total)
+	}
 	// -1表示全量查询
 	if p.PageSize == -1 {
 		return query
@@ -138,4 +140,31 @@ func (l *ListQuery) Build(ctx context.Context, query *gorm.DB, opts ...SQLOption
 
 	query = l.Sort.Build(ctx, query, opts...)
 	return l.Pagination.Build(ctx, query, opts...)
+}
+
+type WhereOpts struct {
+	ID        string
+	AccountID string
+	Select    []string
+}
+
+func (w *WhereOpts) Build(ctx context.Context, query *gorm.DB, opts ...SQLOption) *gorm.DB {
+	if w.ID != "" {
+		query = query.Where("id = ?", w.ID)
+	}
+	if w.AccountID != "" {
+		query = query.Where("account_id = ?", w.AccountID)
+	}
+	if length := len(w.Select); length > 0 {
+		if length == 1 {
+			query = query.Select(w.Select[0])
+		} else {
+			args := make([]interface{}, 0, length-1)
+			for _, selectValue := range w.Select[1:] {
+				args = append(args, selectValue)
+			}
+			query = query.Select(w.Select[0], args...)
+		}
+	}
+	return query
 }
