@@ -2,10 +2,13 @@ package json
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 
 	jsoniter "github.com/json-iterator/go"
 )
+
+type RawMessage json.RawMessage
 
 func Marshal(input interface{}) ([]byte, error) {
 	return jsoniter.ConfigCompatibleWithStandardLibrary.Marshal(input)
@@ -13,6 +16,14 @@ func Marshal(input interface{}) ([]byte, error) {
 
 func Unmarshal(input []byte, data interface{}) error {
 	return jsoniter.ConfigCompatibleWithStandardLibrary.Unmarshal(input, data)
+}
+
+func MarshalToString(input interface{}) (string, error) {
+	return jsoniter.ConfigCompatibleWithStandardLibrary.MarshalToString(input)
+}
+
+func UnmarshalFromString(input string, data interface{}) error {
+	return jsoniter.ConfigCompatibleWithStandardLibrary.UnmarshalFromString(input, data)
 }
 
 // UnmarshalNumber 当data没有指定具体数据结构时，json默认会将uint64数字转化为浮点数，这可能
