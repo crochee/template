@@ -2,13 +2,30 @@ package json
 
 import (
 	"bytes"
-	"encoding/json"
+	"errors"
 	"io"
 
 	jsoniter "github.com/json-iterator/go"
 )
 
-type RawMessage json.RawMessage
+type RawMessage []byte
+
+// MarshalJSON returns m as the JSON encoding of m.
+func (m RawMessage) MarshalJSON() ([]byte, error) {
+	if m == nil {
+		return []byte("null"), nil
+	}
+	return m, nil
+}
+
+// UnmarshalJSON sets *m to a copy of data.
+func (m *RawMessage) UnmarshalJSON(data []byte) error {
+	if m == nil {
+		return errors.New("json.RawMessage: UnmarshalJSON on nil pointer")
+	}
+	*m = append((*m)[0:0], data...)
+	return nil
+}
 
 func Marshal(input interface{}) ([]byte, error) {
 	return jsoniter.ConfigCompatibleWithStandardLibrary.Marshal(input)
