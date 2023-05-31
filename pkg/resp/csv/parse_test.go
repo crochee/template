@@ -19,9 +19,9 @@ type Lists struct {
 }
 
 type Content struct {
-	Name   string    `csv:",1"`
-	Age    int       `csv:"age,string,2"`
-	Scores float64   `csv:"scores,3"`
+	Name   string    `csv:""`
+	Age    int       `csv:"age,string"`
+	Scores float64   `csv:"scores"`
 	Create time.Time `csv:"-"`
 	Inner  `csv:""`
 	Other  *Other `csv:""`
@@ -30,13 +30,13 @@ type Content struct {
 }
 
 type Inner struct {
-	Color string `csv:",4"`
-	Tool  string `csv:",5"`
+	Color string `csv:""`
+	Tool  string `csv:""`
 }
 
 type Other struct {
-	Color string `csv:"Ocolor,6"`
-	Tool  string `csv:"Otool,7"`
+	Color string `csv:"Ocolor"`
+	Tool  string `csv:"Otool"`
 }
 
 type Operate struct {
@@ -44,7 +44,7 @@ type Operate struct {
 }
 
 type MapOp struct {
-	List map[string]interface{} `csv:",dynamic_tile,"`
+	List map[string]interface{} `csv:",dynamic_tile"`
 }
 
 func Test_parse_Parse(t *testing.T) {
@@ -98,56 +98,12 @@ func Test_parse_Parse(t *testing.T) {
 						"Ocolor": "op",
 						"Otool":  "hss",
 					},
-					index: []*indexValue{
-						{
-							key:   "Name",
-							index: 1,
-						},
-						{
-							key:   "age",
-							index: 2,
-						},
-						{
-							key:   "scores",
-							index: 3,
-						},
-						{
-							key:   "Color",
-							index: 4,
-						},
-						{
-							key:   "Tool",
-							index: 5,
-						},
-						{
-							key:   "Ocolor",
-							index: 6,
-						},
-						{
-							key:   "Otool",
-							index: 7,
-						},
-					},
 				},
 				{
 					data: map[string]interface{}{
 						"age":    "20",
 						"Name":   "zhangsan",
 						"scores": 0.0,
-					},
-					index: []*indexValue{
-						{
-							key:   "Name",
-							index: 1,
-						},
-						{
-							key:   "age",
-							index: 2,
-						},
-						{
-							key:   "scores",
-							index: 3,
-						},
 					},
 				},
 			},
@@ -182,16 +138,6 @@ func Test_parse_Parse(t *testing.T) {
 						"Listener(Ocolor)": "p0,p1,p2",
 						"Listener(Otool)":  "t0,t1,t2",
 					},
-					index: []*indexValue{
-						{
-							key:   "Listener(Ocolor)",
-							index: 6,
-						},
-						{
-							key:   "Listener(Otool)",
-							index: 7,
-						},
-					},
 				},
 			},
 			wantErr: false,
@@ -203,8 +149,8 @@ func Test_parse_Parse(t *testing.T) {
 			},
 			args: args{
 				obj: MapOp{List: map[string]interface{}{
-					"cpu;1": 9.0,
-					"mem;2": 80,
+					"cpu": 9.0,
+					"mem": 80,
 				}},
 			},
 			want: []*mapIndexValue{
@@ -212,16 +158,6 @@ func Test_parse_Parse(t *testing.T) {
 					data: map[string]interface{}{
 						"cpu": 9.0,
 						"mem": 80,
-					},
-					index: []*indexValue{
-						{
-							key:   "cpu",
-							index: 1,
-						},
-						{
-							key:   "mem",
-							index: 2,
-						},
 					},
 				},
 			},
@@ -238,7 +174,7 @@ func Test_parse_Parse(t *testing.T) {
 				t.Errorf("parse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			assert.Equal(t, tt.want, got)
+			assert.EqualValues(t, tt.want, got)
 		})
 	}
 }
@@ -263,47 +199,17 @@ func TestFormat(t *testing.T) {
 							"port": "8080",
 							"host": "127.0.0.1",
 						},
-						index: []*indexValue{
-							{
-								key:   "port",
-								index: 1,
-							},
-							{
-								key:   "host",
-								index: 2,
-							},
-						},
 					},
 					{
 						data: map[string]interface{}{
 							"port": "8081",
 							"host": "127.0.0.2",
 						},
-						index: []*indexValue{
-							{
-								key:   "port",
-								index: 1,
-							},
-							{
-								key:   "host",
-								index: 2,
-							},
-						},
 					},
 					{
 						data: map[string]interface{}{
 							"port": "8082",
 							"host": "127.0.0.3",
-						},
-						index: []*indexValue{
-							{
-								key:   "port",
-								index: 1,
-							},
-							{
-								key:   "host",
-								index: 2,
-							},
 						},
 					},
 				},
@@ -313,16 +219,6 @@ func TestFormat(t *testing.T) {
 					data: map[string]interface{}{
 						"test(port)": "8080,8081,8082",
 						"test(host)": "127.0.0.1,127.0.0.2,127.0.0.3",
-					},
-					index: []*indexValue{
-						{
-							key:   "test(port)",
-							index: 1,
-						},
-						{
-							key:   "test(host)",
-							index: 2,
-						},
 					},
 				},
 			},
