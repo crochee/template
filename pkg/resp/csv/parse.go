@@ -8,22 +8,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/json-iterator/go"
 	"go.uber.org/multierr"
 
+	"template/pkg/json"
 	"template/pkg/timex"
 )
 
 const tagString = "string"
 
 type mapIndexValue struct {
-	data  map[string]interface{}
-	index []*indexValue
-}
-
-type indexValue struct {
-	key   string
-	index uint64
+	data map[string]interface{}
 }
 
 type parse struct {
@@ -44,8 +38,7 @@ func (p *parse) parseStruct(obj interface{}) ([]*mapIndexValue, error) {
 		return nil, errors.New("not struct")
 	}
 	result := &mapIndexValue{
-		data:  map[string]interface{}{},
-		index: []*indexValue{},
+		data: map[string]interface{}{},
 	}
 
 	for i := 0; i < t.NumField(); i++ {
@@ -69,21 +62,12 @@ func (p *parse) parseStruct(obj interface{}) ([]*mapIndexValue, error) {
 		var (
 			name   string
 			option string
-			index  int64
 		)
 		if len(tags) == 1 {
 			name = tags[0]
-		} else if len(tags) == 2 {
-			name = tags[0]
-			if tags[1] == tagString || tags[1] == "fmt" {
-				option = tags[1]
-			} else {
-				index, _ = strconv.ParseInt(tags[1], 10, 64)
-			}
-		} else {
+		} else if len(tags) >= 2 {
 			name = tags[0]
 			option = tags[1]
-			index, _ = strconv.ParseInt(tags[2], 10, 64)
 		}
 		if name == "-" {
 			continue // ignore "-"
@@ -91,6 +75,7 @@ func (p *parse) parseStruct(obj interface{}) ([]*mapIndexValue, error) {
 		if name == "" {
 			name = ft.Name // use field name
 		}
+
 		// map to dynamic tile
 		if ft.Type.Kind() == reflect.Map && option == "dynamic_tile" {
 			iter := fv.MapRange()
@@ -98,32 +83,12 @@ func (p *parse) parseStruct(obj interface{}) ([]*mapIndexValue, error) {
 				// key = name;index
 				key := iter.Key().String()
 				value := iter.Value().Interface()
-				splitIndex := strings.LastIndex(key, ";")
-				if splitIndex == -1 {
-					continue
-				}
-				if splitIndex+1 > len(key) {
-					continue
-				}
-				keyIndex, err := strconv.ParseUint(key[splitIndex+1:], 10, 64)
-				if err != nil {
-					continue
-				}
-				tempName := key[:splitIndex]
-				result.data[tempName] = value
-				result.index = append(result.index, &indexValue{
-					key:   tempName,
-					index: keyIndex,
-				})
+				result.data[key] = value
 			}
 			continue
 		}
 		if ft.Type.String() == "time.Time" && option == "time" {
 			result.data[name] = timex.TimeFormat(fv.Interface().(time.Time))
-			result.index = append(result.index, &indexValue{
-				key:   name,
-				index: uint64(index),
-			})
 			continue
 		}
 		if ft.Anonymous || fv.Kind() == reflect.Slice || fv.Kind() == reflect.Array ||
@@ -144,12 +109,6 @@ func (p *parse) parseStruct(obj interface{}) ([]*mapIndexValue, error) {
 				for embName, embValue := range embMap.data {
 					result.data[embName] = embValue
 				}
-				for _, embIndexValue := range embMap.index {
-					result.index = append(result.index, &indexValue{
-						key:   embIndexValue.key,
-						index: embIndexValue.index,
-					})
-				}
 			}
 			continue
 		}
@@ -162,18 +121,10 @@ func (p *parse) parseStruct(obj interface{}) ([]*mapIndexValue, error) {
 			}
 			if tempString != nil {
 				result.data[name] = tempString
-				result.index = append(result.index, &indexValue{
-					key:   name,
-					index: uint64(index),
-				})
 				continue
 			}
 		}
 		result.data[name] = fv.Interface()
-		result.index = append(result.index, &indexValue{
-			key:   name,
-			index: uint64(index),
-		})
 	}
 	return []*mapIndexValue{result}, nil
 }
@@ -223,29 +174,14 @@ func value2String(fv reflect.Value) interface{} {
 	case reflect.Float32, reflect.Float64:
 		return strconv.FormatFloat(fv.Float(), 'f', 2, 64)
 	default:
-		data, _ := jsoniter.ConfigCompatibleWithStandardLibrary.MarshalToString(fv.Interface())
+		data, _ := json.MarshalToString(fv.Interface())
 		return data
 	}
 }
 
-type indexValueList []*indexValue
-
-func (l indexValueList) Len() int {
-	return len(l)
-}
-
-func (l indexValueList) Less(i, j int) bool {
-	return l[i].index < l[j].index
-}
-
-func (l indexValueList) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
-}
-
 func format(name string, input []*mapIndexValue) []*mapIndexValue {
 	result := &mapIndexValue{
-		data:  map[string]interface{}{},
-		index: make([]*indexValue, 0, 4),
+		data: map[string]interface{}{},
 	}
 	for _, embMap := range input {
 		for embName, embValue := range embMap.data {
@@ -256,22 +192,6 @@ func format(name string, input []*mapIndexValue) []*mapIndexValue {
 				continue
 			}
 			result.data[embName] = fmt.Sprintf("%v,%v", v, embValue)
-		}
-		for _, embIndexValue := range embMap.index {
-			var ignore bool
-			embName := fmt.Sprintf("%s(%s)", name, embIndexValue.key)
-			for _, v := range result.index {
-				if v.key == embName {
-					ignore = true
-					break
-				}
-			}
-			if !ignore {
-				result.index = append(result.index, &indexValue{
-					key:   embName,
-					index: embIndexValue.index,
-				})
-			}
 		}
 	}
 	return []*mapIndexValue{result}

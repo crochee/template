@@ -39,7 +39,7 @@ func (c *csvResponse) WriteContentType(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 }
 
-func CsvHandler(name string, headers []string, rows [][]interface{}, w io.Writer) error {
+func CsvHandler(_ string, headers []string, rows [][]interface{}, w io.Writer) error {
 	if _, err := w.Write([]byte("\xEF\xBB\xBF")); err != nil { // 写入UTF-8 BOM，防止中文乱码
 		return err
 	}

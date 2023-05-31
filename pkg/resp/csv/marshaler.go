@@ -3,7 +3,6 @@ package csv
 import (
 	"io"
 	"os"
-	"sort"
 )
 
 // Headers set csv header
@@ -95,30 +94,6 @@ func (m *marshal) Encode(obj interface{}) error {
 	var data []*mapIndexValue
 	if data, err = m.parser.parse(value); err != nil {
 		return err
-	}
-	if len(m.headers) == 0 {
-		headers := make([]*indexValue, 0, 4)
-		for _, v := range data {
-			for _, indexKey := range v.index {
-				var ignore bool
-				for _, header := range headers {
-					if indexKey.key == header.key {
-						ignore = true
-						break
-					}
-				}
-				if !ignore {
-					headers = append(headers, &indexValue{
-						key:   indexKey.key,
-						index: indexKey.index,
-					})
-				}
-			}
-		}
-		sort.Sort(indexValueList(headers))
-		for _, key := range headers {
-			m.headers = append(m.headers, key.key)
-		}
 	}
 
 	rows := make([][]interface{}, len(data))
