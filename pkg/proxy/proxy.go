@@ -52,7 +52,7 @@ func joinURLPath(a, b *url.URL) (path, rawpath string) {
 	return a.Path + b.Path, apath + bpath
 }
 
-func NewReverseProxy(s selector.Selector) *httputil.ReverseProxy {
+func NewReverseProxy(path string, s selector.Selector) *httputil.ReverseProxy {
 	director := func(req *http.Request) {
 		node := s.Next()
 		targetQuery := node.URL.RawQuery
@@ -70,12 +70,11 @@ func NewReverseProxy(s selector.Selector) *httputil.ReverseProxy {
 		}
 	}
 	return &httputil.ReverseProxy{
-		Director:       director,
-		Transport:      client.DefaultTransport,
-		ErrorLog:       log.New(logger.SetWriter(false), "[PROXY]", log.LstdFlags),
-		BufferPool:     utils.BufPool,
-		ModifyResponse: nil,
-		ErrorHandler:   errHandler,
+		Director:     director,
+		Transport:    client.DefaultTransport,
+		ErrorLog:     log.New(logger.SetWriter(false, path), "[PROXY]", log.LstdFlags),
+		BufferPool:   utils.BufPool,
+		ErrorHandler: errHandler,
 	}
 }
 
