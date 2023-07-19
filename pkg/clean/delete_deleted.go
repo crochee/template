@@ -14,7 +14,7 @@ import (
 )
 
 type option struct {
-	connector func(context.Context, ...func(opt *storage.Opt)) *storage.DB
+	connector func(context.Context, ...storage.Opt) *storage.DB
 	policy    PolicyGetter
 }
 
@@ -26,7 +26,7 @@ func WithPolicy(policy PolicyGetter) Option {
 	}
 }
 
-func WithConnector(connector func(context.Context, ...func(opt *storage.Opt)) *storage.DB) Option {
+func WithConnector(connector func(context.Context, ...storage.Opt) *storage.DB) Option {
 	return func(o *option) {
 		o.connector = connector
 	}
