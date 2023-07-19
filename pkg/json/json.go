@@ -6,6 +6,7 @@ import (
 	"io"
 
 	jsoniter "github.com/json-iterator/go"
+	"github.com/tidwall/gjson"
 )
 
 type RawMessage []byte
@@ -57,4 +58,10 @@ func DecodeUseNumber(reader io.Reader, data interface{}) error {
 	d := jsoniter.ConfigCompatibleWithStandardLibrary.NewDecoder(reader)
 	d.UseNumber()
 	return d.Decode(data)
+}
+
+// IsValidJSON checks if the given input can be parsed as valid JSON.
+// It returns true if the input is valid JSON, otherwise false.
+func IsValidJSON(input []byte) bool {
+	return gjson.ValidBytes(input)
 }
