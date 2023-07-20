@@ -14,9 +14,11 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"go.uber.org/multierr"
+	"go.uber.org/zap"
 
 	"template/pkg/client/query"
 	"template/pkg/json"
+	"template/pkg/logger"
 	"template/pkg/utils"
 )
 
@@ -275,6 +277,9 @@ func (r *restfulClient) Headers(header http.Header) RESTClient {
 
 func (r *restfulClient) Retry(attempts int, interval time.Duration,
 	shouldRetryFunc func(*http.Response, error) bool) RESTClient {
+	if attempts <= 0 {
+		return r.addError(fmt.Errorf("attempts must be greater than 0"))
+	}
 	r.attempts = attempts
 	r.interval = interval
 	r.shouldRetryFunc = shouldRetryFunc
@@ -294,35 +299,38 @@ func (r *restfulClient) newBackOff() backoff.BackOff {
 }
 
 func (r *restfulClient) roundTrip(req *http.Request, operate func(*http.Request) (*http.Response, error)) (*http.Response, error) {
-	// 需要重试的条件
-	if r.attempts > 0 {
-		body := req.Body
-		defer body.Close()
-		req.Body = io.NopCloser(body)
+	if r.attempts <= 1 {
+		return operate(req)
 	}
-	var attempts int
-	backOff := r.newBackOff() // 退避算法 保证时间间隔为指数级增长
-	currentInterval := 0 * time.Millisecond
-	t := time.NewTimer(currentInterval)
-	for {
-		select {
-		case <-t.C:
-			shouldRetry := attempts < r.attempts
-			resp, err := operate(req)
-			if !shouldRetry || (r.shouldRetryFunc != nil && !r.shouldRetryFunc(resp, err)) {
-				t.Stop()
-				return resp, err
-			}
-			// 计算下一次
-			currentInterval = backOff.NextBackOff()
-			attempts++
-			// 定时器重置
-			t.Reset(currentInterval)
-		case <-req.Context().Done():
-			t.Stop()
-			return nil, req.Context().Err()
+
+	body := req.Body
+	defer body.Close()
+	req.Body = io.NopCloser(body)
+
+	var (
+		attempts = 1
+		err      error
+		resp     *http.Response
+	)
+	retryOperate := func() error {
+		shouldRetry := attempts < r.attempts
+		resp, err = operate(req)
+		if !shouldRetry || (r.shouldRetryFunc != nil && !r.shouldRetryFunc(resp, err)) {
+			return nil
 		}
+		attempts++
+		return fmt.Errorf("attempt %d failed", attempts-1)
 	}
+	ctx := req.Context()
+	backOff := backoff.WithContext(r.newBackOff(), ctx)
+
+	notify := func(err error, d time.Duration) {
+		logger.From(ctx).Debug("New attempt", zap.Error(err), zap.Duration("interval", d), zap.Int("attempts", attempts), zap.String("url", req.URL.String()))
+	}
+	if errRetry := backoff.RetryNotify(retryOperate, backOff, notify); errRetry != nil {
+		logger.From(ctx).Debug("Final retry attempt failed", zap.Error(errRetry))
+	}
+	return resp, err
 }
 
 func (r *restfulClient) Body(body interface{}) RESTClient {
