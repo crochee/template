@@ -295,7 +295,7 @@ func (r *restfulClient) newBackOff() backoff.BackOff {
 
 func (r *restfulClient) roundTrip(req *http.Request, operate func(*http.Request) (*http.Response, error)) (*http.Response, error) {
 	// 需要重试的条件
-	if r.attempts >= 2 && r.interval > 0 {
+	if r.attempts > 0 {
 		body := req.Body
 		defer body.Close()
 		req.Body = io.NopCloser(body)
