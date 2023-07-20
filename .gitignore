@@ -16,3 +16,5 @@
 .idea
 config/*.yaml
 out
+
+staging

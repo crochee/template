@@ -5,11 +5,14 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"go.uber.org/multierr"
 
 	"template/pkg/client/query"
@@ -19,15 +22,30 @@ import (
 
 type RESTClient interface {
 	Endpoints(endpoint string) RESTClient
+
 	Prefix(segments ...string) RESTClient
+
 	Suffix(segments ...string) RESTClient
+
 	Resource(resource string) RESTClient
+
 	Name(resourceName string) RESTClient
+
 	SubResource(subResources ...string) RESTClient
+
 	Param(paramName string, value ...interface{}) RESTClient
+
 	ParamAny(value interface{}) RESTClient
+
 	SetHeader(key string, values ...string) RESTClient
+
+	Headers(header http.Header) RESTClient
+
 	Body(obj interface{}) RESTClient
+
+	Retry(attempts int, interval time.Duration,
+		shouldRetryFunc func(*http.Response, error) bool) RESTClient
+
 	Do(ctx context.Context, result interface{}, opts ...Func) error
 	DoNop(ctx context.Context, opts ...Func) error
 	DoReader(ctx context.Context) (io.Reader, error)
@@ -67,7 +85,10 @@ type restfulClient struct {
 	subPath    string
 	params     url.Values
 	headers    http.Header
-
+	// retry
+	attempts        int
+	interval        time.Duration
+	shouldRetryFunc func(*http.Response, error) bool
 	// structural elements of the request that are part of the Kubernetes API conventions
 	resource     string
 	resourceName string
@@ -203,10 +224,16 @@ func (r *restfulClient) ParamAny(value interface{}) RESTClient {
 }
 
 func (r *restfulClient) SetHeader(key string, values ...string) RESTClient {
+	if key == "" {
+		return r
+	}
 	if r.headers == nil {
 		r.headers = http.Header{}
 	}
-	r.headers.Del(key)
+	if len(values) == 0 {
+		r.headers.Del(key)
+		return r
+	}
 	for _, value := range values {
 		if value == "" {
 			continue
@@ -214,6 +241,88 @@ func (r *restfulClient) SetHeader(key string, values ...string) RESTClient {
 		r.headers.Add(key, value)
 	}
 	return r
+}
+
+func (r *restfulClient) Headers(header http.Header) RESTClient {
+	if r.headers == nil {
+		r.headers = header
+		return r
+	}
+	r.headers = make(http.Header, len(header))
+	for key, srcValues := range header {
+		dstValues, ok := r.headers[key]
+		if !ok {
+			for _, srcValue := range srcValues {
+				r.headers.Add(key, srcValue)
+			}
+			continue
+		}
+		for _, srcValue := range srcValues {
+			found := false
+			for _, dstValue := range dstValues {
+				if srcValue == dstValue {
+					found = true
+					break
+				}
+			}
+			if !found {
+				r.headers.Add(key, srcValue)
+			}
+		}
+	}
+	return r
+}
+
+func (r *restfulClient) Retry(attempts int, interval time.Duration,
+	shouldRetryFunc func(*http.Response, error) bool) RESTClient {
+	r.attempts = attempts
+	r.interval = interval
+	r.shouldRetryFunc = shouldRetryFunc
+	return r
+}
+
+func (r *restfulClient) newBackOff() backoff.BackOff {
+	if r.attempts < 2 || r.interval <= 0 {
+		return &backoff.ZeroBackOff{}
+	}
+
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = r.interval
+	b.Multiplier = math.Pow(2, 1/float64(r.attempts-1))
+	b.Reset()
+	return b
+}
+
+func (r *restfulClient) roundTrip(req *http.Request, operate func(*http.Request) (*http.Response, error)) (*http.Response, error) {
+	// 需要重试的条件
+	if r.attempts >= 2 && r.interval > 0 {
+		body := req.Body
+		defer body.Close()
+		req.Body = io.NopCloser(body)
+	}
+	var attempts int
+	backOff := r.newBackOff() // 退避算法 保证时间间隔为指数级增长
+	currentInterval := 0 * time.Millisecond
+	t := time.NewTimer(currentInterval)
+	for {
+		select {
+		case <-t.C:
+			shouldRetry := attempts < r.attempts
+			resp, err := operate(req)
+			if !shouldRetry || (r.shouldRetryFunc != nil && !r.shouldRetryFunc(resp, err)) {
+				t.Stop()
+				return resp, err
+			}
+			// 计算下一次
+			currentInterval = backOff.NextBackOff()
+			attempts++
+			// 定时器重置
+			t.Reset(currentInterval)
+		case <-req.Context().Done():
+			t.Stop()
+			return nil, req.Context().Err()
+		}
+	}
 }
 
 func (r *restfulClient) Body(body interface{}) RESTClient {
@@ -235,7 +344,6 @@ func (r *restfulClient) Body(body interface{}) RESTClient {
 		r.SetHeader("Content-Type", "application/json; charset=utf-8")
 		r.body = bytes.NewReader(content)
 	}
-
 	return r
 }
 
@@ -249,7 +357,7 @@ func (r *restfulClient) Do(ctx context.Context, result interface{}, opts ...Func
 		return err
 	}
 	var resp *http.Response
-	if resp, err = r.c.RoundTrip(req); err != nil {
+	if resp, err = r.roundTrip(req, r.c.RoundTrip); err != nil {
 		return err
 	}
 	defer resp.Body.Close()
@@ -257,20 +365,7 @@ func (r *restfulClient) Do(ctx context.Context, result interface{}, opts ...Func
 }
 
 func (r *restfulClient) DoNop(ctx context.Context, opts ...Func) error {
-	if r.err != nil {
-		return r.err
-	}
-	uri := r.URL().String()
-	req, err := r.c.Request().Build(ctx, r.verb, uri, r.body, r.headers)
-	if err != nil {
-		return err
-	}
-	var resp *http.Response
-	if resp, err = r.c.RoundTrip(req); err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	return r.c.Response().Parse(resp, nil, opts...)
+	return r.Do(ctx, nil, opts...)
 }
 
 func (r *restfulClient) DoReader(ctx context.Context) (io.Reader, error) {
@@ -283,7 +378,7 @@ func (r *restfulClient) DoReader(ctx context.Context) (io.Reader, error) {
 		return nil, err
 	}
 	var resp *http.Response
-	if resp, err = r.c.RoundTrip(req); err != nil {
+	if resp, err = r.roundTrip(req, r.c.RoundTrip); err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
