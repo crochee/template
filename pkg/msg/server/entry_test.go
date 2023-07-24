@@ -1,5 +1,5 @@
 // Package msg
-package server
+package server_test
 
 import (
 	"context"
@@ -17,6 +17,7 @@ import (
 	"template/internal/ctxw"
 	"template/pkg/async"
 	"template/pkg/msg"
+	"template/pkg/msg/server"
 )
 
 func TestError(t *testing.T) {
@@ -43,18 +44,18 @@ func TestError(t *testing.T) {
 			return nil
 		}).
 		AnyTimes()
-	New(ctxw.GetTraceID, func(o *msg.WriterOption) {
+	server.New(ctxw.GetTraceID, func(o *msg.WriterOption) {
 		o.Publisher = p
 		o.Channel = cc
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	ctx, span := otel.Tracer("server").Start(ctx, "TestError")
-	Merge(ctx, "debug")
-	Resource(ctx, "12", "name", "34", "sub_name")
+	server.Merge(ctx, "debug")
+	server.Resource(ctx, "12", "name", "34", "sub_name")
 	for i := 0; i < 1; i++ {
 		index := strconv.Itoa(i)
-		Errorf(ctx, errors.New(index), "io%d", i)
+		server.Errorf(ctx, errors.New(index), "io%d", i)
 	}
 	span.End()
 	time.Sleep(6 * time.Second)

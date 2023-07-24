@@ -4,10 +4,13 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
 	"template/pkg/code"
 	"template/pkg/logger"
+	"template/pkg/msg"
 )
 
 type Response struct {
@@ -23,7 +26,14 @@ func (r *Response) Convert(statusCode int) code.ErrorCode {
 
 // Error gin Response with error
 func Error(c *gin.Context, err error) {
-	logger.From(c.Request.Context()).Error("response failed", zap.Error(err))
+	ctx := c.Request.Context()
+	logger.From(ctx).Error("response failed", zap.Error(err))
+
+	span := trace.SpanFromContext(ctx)
+	span.AddEvent(semconv.ExceptionEventName, trace.WithAttributes(
+		msg.LocateKey.String(msg.CallerFunc(0)),
+		semconv.ExceptionMessage(fmt.Sprintf("%+v", err)),
+	))
 	for err != nil {
 		u, ok := err.(interface {
 			Unwrap() error
