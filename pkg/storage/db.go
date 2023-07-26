@@ -211,7 +211,7 @@ func (d *DB) With(ctx context.Context, opts ...Opt) *DB {
 	for _, f := range opts {
 		f(o)
 	}
-	c := &DB{DB: d.DB.Session(&gorm.Session{
+	c := &DB{DB: d.Session(&gorm.Session{
 		Context: ctx,
 		Logger: gormx.NewLog(l, o.debug || d.Debug, glogger.Config{
 			SlowThreshold: o.slowThreshold,
