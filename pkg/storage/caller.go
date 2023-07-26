@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"gorm.io/datatypes"
+	"gorm.io/gorm"
 )
 
 type Caller struct {
@@ -47,4 +48,9 @@ func (r *Caller) FillCaller(ctx context.Context) {
 			r.CallerExtra = datatypes.JSON(extra)
 		}
 	}
+}
+
+func (r *Caller) BeforeCreate(db *gorm.DB) error {
+	r.FillCaller(db.Statement.Context)
+	return nil
 }

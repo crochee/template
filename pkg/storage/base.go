@@ -47,3 +47,21 @@ func (b *Base) WithPK(id string) {
 	}
 	b.ID = parseUint
 }
+
+type BaseCaller struct {
+	Base
+	Caller
+}
+
+func (b *BaseCaller) BeforeCreate(db *gorm.DB) error {
+	if err := b.Caller.BeforeCreate(db); err != nil {
+		return err
+	}
+	return b.Base.BeforeCreate(db)
+}
+
+type AccountCaller struct {
+	BaseCaller
+	AccountID string `gorm:"column:account_id;type:varchar(120);comment:ACCOUNT ID" json:"account_id"`
+	UserID    string `gorm:"column:user_id;type:varchar(120);comment:用户ID" json:"user_id"`
+}
