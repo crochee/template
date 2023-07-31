@@ -13,6 +13,12 @@ if [[ -z "${1}" ]]; then
 else
   git checkout -B ${1} origin/${1}
 fi
+# 写入commit信息
+# 获取当前 Git 仓库的 commit hash
+commit_hash=$(git rev-parse HEAD)
+# 将 commit hash 写入指定的文件
+echo "Current commit hash: $commit_hash" > commit_hash.txt
+
 # 删除git信息并移动目录
 rm -rf .git && cd ../.. && \
 rm -rf staging/${NAME} && \
