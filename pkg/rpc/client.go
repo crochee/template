@@ -149,3 +149,6 @@ func (c *RpcClient) Cast(ctx context.Context, req *amqprpc.Request) error {
 
 	return nil
 }
+
+// 全局单例
+var Client *RpcClient

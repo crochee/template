@@ -36,12 +36,10 @@ const (
 	statusFailure = "failure"
 )
 
-var client *rpc.RpcClient
-
 func SetClient(c *rpc.RpcClient,
 	getEventIDFunc func(context.Context) uint64,
 	setEventIDFunc func(context.Context, uint64) context.Context) {
-	client = c
+	rpc.Client = c
 	getEventID = getEventIDFunc
 	setEventID = setEventIDFunc
 }
@@ -67,7 +65,7 @@ func send(ctx context.Context, actionName string, msgBody interface{}) error {
 		WithBody(string(body))
 	req.WriteHeader(HeaderActionName, actionName)
 
-	return client.Cast(ctx, req)
+	return rpc.Client.Cast(ctx, req)
 }
 
 type createEventBody struct {
