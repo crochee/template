@@ -105,14 +105,30 @@ func NewRpcClient(ctx context.Context, uri string, opts ...Option) *RpcClient {
 
 func (c *RpcClient) send(ctx context.Context, req *amqprpc.Request) (*amqp.Delivery, error) {
 	// Set the common message header
-	req.WriteHeader(v.HeaderAccountID, c.getAccountID(ctx))
-	req.WriteHeader(v.HeaderAccountName, c.getAccountName(ctx))
-	req.WriteHeader(v.HeaderUserID, c.getUserID(ctx))
-	req.WriteHeader(v.HeaderTraceID, c.getTraceID(ctx))
-	req.WriteHeader(v.HeaderRealIP, c.getIP(ctx))
-	req.WriteHeader(v.HeaderOperatorID, c.getOperatorID(ctx))
-	req.WriteHeader(v.HeaderOperatorName, c.getOperatorName(ctx))
-	req.WriteHeader(v.HeaderOperatorType, c.getOperatorType(ctx))
+	if accountID := c.getAccountID(ctx); accountID != "" {
+		req.WriteHeader(v.HeaderAccountID, accountID)
+	}
+	if accountName := c.getAccountName(ctx); accountName != "" {
+		req.WriteHeader(v.HeaderAccountName, accountName)
+	}
+	if userID := c.getUserID(ctx); userID != "" {
+		req.WriteHeader(v.HeaderUserID, userID)
+	}
+	if traceID := c.getTraceID(ctx); traceID != "" {
+		req.WriteHeader(v.HeaderTraceID, traceID)
+	}
+	if ip := c.getIP(ctx); ip != "" {
+		req.WriteHeader(v.HeaderRealIP, ip)
+	}
+	if operatorID := c.getOperatorID(ctx); operatorID != "" {
+		req.WriteHeader(v.HeaderOperatorID, operatorID)
+	}
+	if operatorName := c.getOperatorName(ctx); operatorName != "" {
+		req.WriteHeader(v.HeaderOperatorName, operatorName)
+	}
+	if operatorType := c.getOperatorType(ctx); operatorType != "" {
+		req.WriteHeader(v.HeaderOperatorType, operatorType)
+	}
 
 	return c.client.Send(req)
 }
