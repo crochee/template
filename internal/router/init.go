@@ -15,7 +15,7 @@ import (
 // New gin router
 func New(store store.Store, client gateway.Client) *gin.Engine {
 	// init
-	gin.DefaultWriter = logger.SetWriter(viper.GetBool("log.console"))
+	gin.DefaultWriter = logger.SetWriter(viper.GetBool("log.console"), "")
 
 	router := gin.New()
 	router.GET("/health", controllers.Health)
