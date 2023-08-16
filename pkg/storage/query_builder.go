@@ -65,7 +65,7 @@ func (p *Pagination) Build(_ context.Context, query *gorm.DB, _ ...SQLOption) *g
 		query.Count(&p.Total)
 	}
 	// -1表示全量查询
-	if p.PageSize == -1 {
+	if p.PageSize < 0 {
 		return query
 	}
 	if p.PageNum == 0 {
