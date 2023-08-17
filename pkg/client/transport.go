@@ -17,16 +17,24 @@ type Transport interface {
 	Method(string) RESTClient
 }
 
-var DefaultTransport Transport = &Transporter{
-	req:          OriginalRequest{},
-	roundTripper: CurlRoundTripperWithFault(),
-	resp:         ResponseHandler{},
-}
+var DefaultTransport Transport = NewTransporter(
+	OriginalRequest{},
+	CurlRoundTripperWithFault(),
+	ResponseHandler{},
+)
 
 type Transporter struct {
 	req          Requester
 	roundTripper http.RoundTripper
 	resp         Response
+}
+
+func NewTransporter(req Requester, roundTripper http.RoundTripper, resp Response) Transport {
+	return &Transporter{
+		req:          req,
+		roundTripper: roundTripper,
+		resp:         resp,
+	}
 }
 
 func (t *Transporter) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -70,5 +78,5 @@ func (t *Transporter) Client() http.RoundTripper {
 }
 
 func (t *Transporter) Method(method string) RESTClient {
-	return &restfulClient{c: t, verb: method}
+	return NewRESTClient(t, method)
 }
