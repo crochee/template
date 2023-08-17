@@ -101,7 +101,7 @@ type restfulClient struct {
 	body io.Reader
 }
 
-func (r *restfulClient) addError(err error) RESTClient {
+func (r *restfulClient) addErr(err error) RESTClient {
 	r.err = multierr.Append(r.err, err)
 	return r
 }
@@ -112,7 +112,7 @@ func (r *restfulClient) Endpoints(endpoint string) RESTClient {
 	}
 	baseURL, err := url.Parse(endpoint)
 	if err != nil {
-		return r.addError(err)
+		return r.addErr(err)
 	}
 	r.baseURL = baseURL
 	return r
@@ -130,10 +130,10 @@ func (r *restfulClient) Suffix(segments ...string) RESTClient {
 
 func (r *restfulClient) Resource(resource string) RESTClient {
 	if r.resource != "" {
-		return r.addError(fmt.Errorf("resource already set to %q, cannot change to %q", r.resource, resource))
+		return r.addErr(fmt.Errorf("resource already set to %q, cannot change to %q", r.resource, resource))
 	}
 	if reasons := IsValidPathSegmentName(resource); len(reasons) != 0 {
-		return r.addError(fmt.Errorf("invalid resource %q: %v", resource, reasons))
+		return r.addErr(fmt.Errorf("invalid resource %q: %v", resource, reasons))
 	}
 	r.resource = resource
 	return r
@@ -141,14 +141,13 @@ func (r *restfulClient) Resource(resource string) RESTClient {
 
 func (r *restfulClient) Name(resourceName string) RESTClient {
 	if resourceName == "" {
-		return r.addError(fmt.Errorf("resource name may not be empty"))
+		return r.addErr(fmt.Errorf("resource name may not be empty"))
 	}
 	if r.resourceName != "" {
-		r.err = fmt.Errorf("resource name already set to %q, cannot change to %q", r.resourceName, resourceName)
-		return r
+		return r.addErr(fmt.Errorf("resource name already set to %q, cannot change to %q", r.resourceName, resourceName))
 	}
 	if reasons := IsValidPathSegmentName(resourceName); len(reasons) != 0 {
-		return r.addError(fmt.Errorf("invalid resource name %q: %v", resourceName, reasons))
+		return r.addErr(fmt.Errorf("invalid resource name %q: %v", resourceName, reasons))
 	}
 	r.resourceName = resourceName
 	return r
@@ -157,11 +156,11 @@ func (r *restfulClient) Name(resourceName string) RESTClient {
 func (r *restfulClient) SubResource(subResources ...string) RESTClient {
 	subresource := path.Join(subResources...)
 	if r.subresource != "" {
-		return r.addError(fmt.Errorf("subresource already set to %q, cannot change to %q", r.subresource, subresource))
+		return r.addErr(fmt.Errorf("subresource already set to %q, cannot change to %q", r.subresource, subresource))
 	}
 	for _, s := range subResources {
 		if reasons := IsValidPathSegmentName(s); len(reasons) != 0 {
-			return r.addError(fmt.Errorf("invalid subresource %q: %v", s, reasons))
+			return r.addErr(fmt.Errorf("invalid subresource %q: %v", s, reasons))
 		}
 	}
 	r.subresource = subresource
@@ -194,9 +193,9 @@ func (r *restfulClient) ParamAny(value interface{}) RESTClient {
 	}
 	form, err := query.Values(value)
 	if err != nil {
-		return r.addError(err)
+		return r.addErr(err)
 	}
-	if r.params == nil {
+	if len(r.params) == 0 {
 		r.params = form
 		return r
 	}
@@ -246,7 +245,7 @@ func (r *restfulClient) SetHeader(key string, values ...string) RESTClient {
 }
 
 func (r *restfulClient) Headers(header http.Header) RESTClient {
-	if r.headers == nil {
+	if len(header) == 0 {
 		r.headers = header
 		return r
 	}
@@ -278,7 +277,7 @@ func (r *restfulClient) Headers(header http.Header) RESTClient {
 func (r *restfulClient) Retry(attempts int, interval time.Duration,
 	shouldRetryFunc func(*http.Response, error) bool) RESTClient {
 	if attempts <= 0 {
-		return r.addError(fmt.Errorf("attempts must be greater than 0"))
+		return r.addErr(fmt.Errorf("attempts must be greater than 0"))
 	}
 	r.attempts = attempts
 	r.interval = interval
@@ -347,7 +346,7 @@ func (r *restfulClient) Body(body interface{}) RESTClient {
 	default:
 		content, err := json.Marshal(data)
 		if err != nil {
-			return r.addError(err)
+			return r.addErr(err)
 		}
 		r.SetHeader("Content-Type", "application/json; charset=utf-8")
 		r.body = bytes.NewReader(content)
