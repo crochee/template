@@ -101,6 +101,11 @@ type restfulClient struct {
 	body io.Reader
 }
 
+// NewRESTClient start to reqest
+func NewRESTClient(transport Transport, method string) RESTClient {
+	return &restfulClient{c: transport, verb: method}
+}
+
 func (r *restfulClient) addErr(err error) RESTClient {
 	r.err = multierr.Append(r.err, err)
 	return r
