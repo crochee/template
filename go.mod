@@ -11,7 +11,7 @@ require (
 	github.com/go-playground/locales v0.14.0
 	github.com/go-playground/universal-translator v0.18.0
 	github.com/go-playground/validator/v10 v10.11.0
-	github.com/go-redis/redis/v8 v8.11.5
+	github.com/go-redis/redis/v8 v8.8.0
 	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/golang/mock v1.3.1
 	github.com/google/go-cmp v0.5.9
@@ -79,6 +79,8 @@ require (
 	github.com/ugorji/go/codec v1.1.7 // indirect
 	github.com/xuri/efp v0.0.0-20220603152613-6918739fd470 // indirect
 	github.com/xuri/nfp v0.0.0-20220409054826-5e722a1d9e22 // indirect
+	go.opentelemetry.io/otel/internal/metric v0.27.0 // indirect
+	go.opentelemetry.io/otel/metric v0.27.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	golang.org/x/crypto v0.5.0 // indirect
 	golang.org/x/net v0.5.0 // indirect
