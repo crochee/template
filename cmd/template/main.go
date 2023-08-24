@@ -49,7 +49,7 @@ func main() {
 	zap.ReplaceGlobals(logger.New(
 		logger.WithFields(zap.String("service", v.ServiceName)),
 		logger.WithLevel(viper.GetString("log.level")),
-		logger.WithWriter(logger.SetWriter(viper.GetBool("log.console")))))
+		logger.WithWriter(logger.SetWriter(viper.GetBool("log.console"), ""))))
 	if err := run(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func run() error {
 		logger.New(
 			logger.WithFields(zap.String("service", v.ServiceName)),
 			logger.WithLevel(viper.GetString("log.level")),
-			logger.WithWriter(logger.SetWriter(viper.GetBool("log.console")))),
+			logger.WithWriter(logger.SetWriter(viper.GetBool("log.console"), ""))),
 	)
 	// 初始化数据库
 	dataStore, err := mysql.NewMysqlClient(ctx)

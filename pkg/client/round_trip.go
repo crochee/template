@@ -2,9 +2,12 @@ package client
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"time"
 
 	uuid "github.com/satori/go.uuid"
 	"go.uber.org/zap"
@@ -17,19 +20,57 @@ import (
 // CurlRoundTripper 使用无埋点信息的客户端
 func CurlRoundTripper() http.RoundTripper {
 	return &CurlTransporter{
-		roundTripper: http.DefaultTransport,
+		RoundTripper: http.DefaultTransport,
 	}
 }
 
 // CurlRoundTripperWithFault 使用有埋点信息的客户端
 func CurlRoundTripperWithFault() http.RoundTripper {
 	return &TransporterWithFault{
-		roundTripper: http.DefaultTransport,
+		RoundTripper: http.DefaultTransport,
+	}
+}
+
+// CurlRoundTripperWithTls 使用无埋点信息的https客户端
+func CurlRoundTripperWithTls(tls *tls.Config) http.RoundTripper {
+	return &CurlTransporter{
+		RoundTripper: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			TLSClientConfig:       tls,
+		},
+	}
+}
+
+// CurlRoundTripperWithTlsFault 使用有埋点信息的https客户端
+func CurlRoundTripperWithTlsFault(tls *tls.Config) http.RoundTripper {
+	return &TransporterWithFault{
+		RoundTripper: &http.Transport{
+			Proxy: http.ProxyFromEnvironment,
+			DialContext: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).DialContext,
+			ForceAttemptHTTP2:     true,
+			MaxIdleConns:          100,
+			IdleConnTimeout:       90 * time.Second,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+			TLSClientConfig:       tls,
+		},
 	}
 }
 
 type CurlTransporter struct {
-	roundTripper http.RoundTripper
+	RoundTripper http.RoundTripper
 }
 
 func (t *CurlTransporter) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -44,7 +85,7 @@ func (t *CurlTransporter) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 
 	var resp *http.Response
-	if resp, err = t.roundTripper.RoundTrip(req); err != nil {
+	if resp, err = t.RoundTripper.RoundTrip(req); err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
@@ -69,7 +110,7 @@ func (t *CurlTransporter) RoundTrip(req *http.Request) (*http.Response, error) {
 }
 
 type TransporterWithFault struct {
-	roundTripper http.RoundTripper
+	RoundTripper http.RoundTripper
 }
 
 func (t *TransporterWithFault) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -86,7 +127,7 @@ func (t *TransporterWithFault) RoundTrip(req *http.Request) (*http.Response, err
 	server.Merge(ctx, curl.String())
 
 	var resp *http.Response
-	if resp, err = t.roundTripper.RoundTrip(req); err != nil {
+	if resp, err = t.RoundTripper.RoundTrip(req); err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
