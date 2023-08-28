@@ -11,6 +11,7 @@ import (
 type Pool struct {
 	waitGroup   sync.WaitGroup
 	ctx         context.Context
+	sem         chan struct{}
 	recoverFunc func(ctx context.Context, r interface{})
 	copyContext func(dst context.Context, src context.Context) context.Context
 }
@@ -24,20 +25,32 @@ func NewPool(ctx context.Context, opts ...Option) *Pool {
 	for _, o := range opts {
 		o(&opt)
 	}
-	return &Pool{
+	p := &Pool{
 		ctx:         ctx,
 		recoverFunc: opt.recoverFunc,
 		copyContext: opt.copyContext,
 	}
+
+	if opt.limit > 0 {
+		p.sem = make(chan struct{}, opt.limit)
+	}
+	return p
 }
 
 // Go starts a recoverable goroutine with a context.
 func (p *Pool) Go(ctx context.Context, goroutine func(context.Context)) {
+	if p.sem != nil {
+		p.sem <- struct{}{}
+	}
+
 	p.waitGroup.Add(1)
 	go func(ctx context.Context) {
 		defer func() {
 			if r := recover(); r != nil {
 				p.recoverFunc(ctx, r)
+			}
+			if p.sem != nil {
+				<-p.sem
 			}
 			p.waitGroup.Done()
 		}()
