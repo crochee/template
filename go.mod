@@ -38,8 +38,8 @@ require (
 	go.uber.org/zap v1.21.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
 	gorm.io/datatypes v1.0.7
-	gorm.io/driver/mysql v1.4.4
-	gorm.io/gorm v1.24.2
+	gorm.io/driver/mysql v1.3.6
+	gorm.io/gorm v1.23.8
 	moul.io/http2curl v1.0.0
 )
 
