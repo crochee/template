@@ -13,21 +13,35 @@ type ErrGroup struct {
 	waitGroup sync.WaitGroup
 	ctx       context.Context
 	cancel    context.CancelFunc
+	sem       chan struct{}
 	errOnce   sync.Once
 	err       error
 }
 
 // NewGroup starts a recoverable goroutine ErrGroup with a context.
-func NewGroup(ctx context.Context) *ErrGroup {
+func NewGroup(ctx context.Context, opts ...Option) *ErrGroup {
 	newCtx, cancel := context.WithCancel(ctx)
-	return &ErrGroup{
+
+	opt := option{}
+	for _, o := range opts {
+		o(&opt)
+	}
+	g := &ErrGroup{
 		ctx:    newCtx,
 		cancel: cancel,
 	}
+
+	if opt.limit > 0 {
+		g.sem = make(chan struct{}, opt.limit)
+	}
+	return g
 }
 
 // Go starts a recoverable goroutine with a context.
 func (e *ErrGroup) Go(goroutine func(context.Context) error) {
+	if e.sem != nil {
+		e.sem <- struct{}{}
+	}
 	e.waitGroup.Add(1)
 	go func() {
 		var err error
@@ -40,6 +54,9 @@ func (e *ErrGroup) Go(goroutine func(context.Context) error) {
 					e.err = err
 					e.cancel()
 				})
+			}
+			if e.sem != nil {
+				<-e.sem
 			}
 			e.waitGroup.Done()
 		}()
