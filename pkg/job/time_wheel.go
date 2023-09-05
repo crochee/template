@@ -296,7 +296,7 @@ func (t *timeWheel) moveTask(ctx context.Context, task *entry) {
 			return
 		}
 		logger.From(ctx).Error("ReScheduleJob failed",
-			zap.String("Key", task.Job.Key()),
+			zap.String("Key", task.Key()),
 			zap.String("Trigger", task.Trigger.Description()),
 			zap.Error(err))
 		return
