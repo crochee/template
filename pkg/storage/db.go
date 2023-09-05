@@ -231,15 +231,19 @@ func getLevel(l glogger.LogLevel, debug bool) glogger.LogLevel {
 	return l
 }
 
-func WithNoInfoHandle(o *opt) {
-	o.levelFunc = noInfoHandle
+func WithLevelHandle(f func(glogger.LogLevel, bool) glogger.LogLevel) Opt {
+	return func(o *opt) {
+		o.levelFunc = f
+	}
 }
 
-func WithDebug(o *opt) {
-	o.debug = true
+func WithDebug(debug bool) Opt {
+	return func(o *opt) {
+		o.debug = debug
+	}
 }
 
-func noInfoHandle(level glogger.LogLevel, _ bool) glogger.LogLevel {
+func NoInfoHandle(level glogger.LogLevel, _ bool) glogger.LogLevel {
 	if level > glogger.Warn {
 		return glogger.Warn
 	}
