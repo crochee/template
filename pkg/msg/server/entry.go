@@ -25,8 +25,10 @@ var exp *msg.Writer
 
 // New 更新全局参数
 func New(getTraceID func(context.Context) string, opts ...func(*msg.WriterOption)) {
+	exp = msg.NewWriter(opts...)
+
 	tpOpts := []sdktrace.TracerProviderOption{
-		sdktrace.WithBatcher(msg.NewWriter(opts...)),
+		sdktrace.WithBatcher(exp),
 		sdktrace.WithIDGenerator(msg.DefaultIDGenerator(getTraceID)),
 	}
 	tp := sdktrace.NewTracerProvider(
@@ -47,7 +49,7 @@ func Errorf(ctx context.Context, err error, format string, a ...interface{}) {
 	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(msg.LocateKey.String(msg.CallerFunc(0)))
 	span.RecordError(err,
-		trace.WithAttributes(attribute.Key("msg").String(fmt.Sprintf(format, a...))))
+		trace.WithAttributes(msg.MsgKey.String(fmt.Sprintf(format, a...))))
 }
 
 // ErrorWith 写入错误和消息
@@ -55,12 +57,12 @@ func ErrorWith(ctx context.Context, err error, detail string) {
 	span := trace.SpanFromContext(ctx)
 	span.SetAttributes(msg.LocateKey.String(msg.CallerFunc(0)))
 	span.RecordError(err,
-		trace.WithAttributes(attribute.Key("msg").String(detail)))
+		trace.WithAttributes(msg.MsgKey.String(detail)))
 }
 
 // Merge 根据trace_id为错误的消息增加一条数据,例如curl信息
 func Merge(ctx context.Context, info string) {
-	trace.SpanFromContext(ctx).AddEvent(msg.CurlEvent, trace.WithAttributes(attribute.Key("msg").String(info)))
+	trace.SpanFromContext(ctx).AddEvent(msg.CurlEvent, trace.WithAttributes(msg.MsgKey.String(info)))
 }
 
 func Resource(ctx context.Context, resource, resourceType string, subRes ...string) {

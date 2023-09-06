@@ -74,6 +74,7 @@ var (
 	AccountIDKey  = attribute.Key("AccountID")
 	UserIDKey     = attribute.Key("UserID")
 	LocateKey     = attribute.Key("Locate")
+	MsgKey        = attribute.Key("msg")
 )
 
 var (

@@ -9,11 +9,13 @@ import (
 	uuid "github.com/gofrs/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/streadway/amqp"
+	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.uber.org/zap"
 
 	"template/pkg/async"
+	"template/pkg/json"
 	"template/pkg/logger"
 )
 
@@ -60,7 +62,10 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 	for i := range spans {
 		metadata := w.MetadataPool.Get()
 		var hasErr bool
-		for _, event := range spans[i].Events() {
+		events := spans[i].Events()
+		tempEvents := make([]sdktrace.Event, 0, len(events))
+
+		for _, event := range events {
 			switch event.Name {
 			case semconv.ExceptionEventName:
 				metadata.ErrorTime = event.Time
@@ -70,7 +75,23 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 					}
 				}
 				hasErr = true
+			case CurlEvent:
+				if len(tempEvents) > 0 {
+					// 对curl事件进行裁剪，防止出现循环请求，导致内容过长
+					oreq := w.getRequest(tempEvents[len(tempEvents)-1].Attributes)
+					req := w.getRequest(event.Attributes)
+					if oreq != "" && req == oreq {
+						continue
+					}
+				}
+			default:
 			}
+			tempEvents = append(tempEvents, sdktrace.Event{
+				Name:                  event.Name,
+				Attributes:            event.Attributes,
+				DroppedAttributeCount: event.DroppedAttributeCount,
+				Time:                  event.Time,
+			})
 		}
 		if !hasErr {
 			w.MetadataPool.Put(metadata)
@@ -95,7 +116,7 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 			default:
 			}
 		}
-		data, err := w.JSONHandler.Marshal(spans[i].Events())
+		data, err := w.JSONHandler.Marshal(tempEvents)
 		if err != nil {
 			logger.From(ctx).Error("marshal events failed", zap.Error(err))
 			continue
@@ -125,6 +146,22 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 		logger.From(ctx).Error("Publish failed", zap.Error(err))
 	}
 	return nil
+}
+
+func (w *Writer) getRequest(attrs []attribute.KeyValue) string {
+	for _, tempAttr := range attrs {
+		if tempAttr.Key == MsgKey {
+			var content struct {
+				Request  string
+				Response string
+				Status   string
+			}
+			if err := json.Unmarshal([]byte(tempAttr.Value.AsString()), &content); err == nil {
+				return content.Request
+			}
+		}
+	}
+	return ""
 }
 
 func (w *Writer) Shutdown(ctx context.Context) error {
