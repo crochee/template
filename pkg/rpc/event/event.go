@@ -13,6 +13,7 @@ import (
 	"template/pkg/idx"
 	"template/pkg/json"
 	"template/pkg/logger"
+	"template/pkg/replace"
 	"template/pkg/rpc"
 	"template/pkg/utils"
 )
@@ -61,8 +62,7 @@ func send(ctx context.Context, actionName string, msgBody interface{}) error {
 	req := amqprpc.NewRequest().
 		WithExchange(exchange).
 		WithRoutingKey(routingKey).
-		//WithBody(log.PwdReplacerReplaceStr(string(body)))
-		WithBody(string(body))
+		WithBody(replace.PwdReplacerReplaceStr(string(body)))
 	req.WriteHeader(HeaderActionName, actionName)
 
 	return rpc.Client.Cast(ctx, req)
