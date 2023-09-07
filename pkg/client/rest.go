@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"reflect"
 	"strings"
 	"time"
 
@@ -184,10 +185,20 @@ func (r *restfulClient) Param(key string, values ...interface{}) RESTClient {
 		return r
 	}
 	for _, value := range values {
-		if value == nil || value == "" {
+		v := reflect.ValueOf(value)
+		if v.IsZero() {
 			continue
 		}
-		r.params.Add(key, utils.ToString(value))
+
+		vk := v.Kind()
+		if vk == reflect.Array || vk == reflect.Slice {
+			l := v.Len()
+			for i := 0; i < l; i++ {
+				r.Param(key, v.Index(i).Interface())
+			}
+		} else {
+			r.params.Add(key, utils.ToString(value))
+		}
 	}
 	return r
 }
