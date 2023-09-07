@@ -92,8 +92,8 @@ func (t *CurlTransporter) RoundTrip(req *http.Request) (*http.Response, error) {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	content.Status = resp.Status
 	if resp.StatusCode == http.StatusNoContent {
-		content.Status = resp.Status
 		return resp, nil
 	}
 	var response []byte
@@ -130,8 +130,8 @@ func (t *TransporterWithFault) RoundTrip(req *http.Request) (*http.Response, err
 		return nil, err
 	}
 	defer resp.Body.Close()
+	content.Status = resp.Status
 	if resp.StatusCode == http.StatusNoContent {
-		content.Status = resp.Status
 		return resp, nil
 	}
 	var response []byte
