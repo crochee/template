@@ -81,7 +81,7 @@ func (s SoftDeletedAtUpdateClause) ModifyStatement(stmt *gorm.Statement) {
 		}
 	}
 	stmt.AddClause(clause.Where{Exprs: []clause.Expression{
-		clause.Eq{Column: clause.Column{Table: clause.CurrentTable, Name: s.Field.DBName}, Value: 0},
+		clause.Eq{Column: clause.Column{Table: clause.CurrentTable, Name: s.Field.DBName}, Value: nil},
 	}})
 	stmt.Clauses["soft_delete_enabled"] = clause.Clause{}
 }
