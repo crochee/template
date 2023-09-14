@@ -6,14 +6,14 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/json-iterator/go"
+	jsoniter "github.com/json-iterator/go"
 )
 
-type u64AsStringCodec struct {
+type U64AsStringCodec struct {
 	jsoniter.DummyExtension
 }
 
-func (extension *u64AsStringCodec) UpdateStructDescriptor(structDescriptor *jsoniter.StructDescriptor) {
+func (extension *U64AsStringCodec) UpdateStructDescriptor(structDescriptor *jsoniter.StructDescriptor) {
 	for _, binding := range structDescriptor.Fields {
 		if binding.Field.Type().Kind() == reflect.Uint64 {
 			tagParts := strings.Split(binding.Field.Tag().Get("json"), ",")
