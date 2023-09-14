@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/json-iterator/go"
+	jsoniter "github.com/json-iterator/go"
 )
 
 func Test_Encode(t *testing.T) {

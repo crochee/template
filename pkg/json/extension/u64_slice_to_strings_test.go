@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/json-iterator/go"
+	jsoniter "github.com/json-iterator/go"
 )
 
 func Test_U64s_Encode(t *testing.T) {
@@ -47,7 +47,7 @@ func Test_U64s_Encode(t *testing.T) {
 	}
 
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
-	json.RegisterExtension(&u64SliceAsStringsCodec{})
+	json.RegisterExtension(&U64SliceAsStringsCodec{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := json.Marshal(tt.input)
@@ -101,7 +101,7 @@ func Test_U64s_Decode(t *testing.T) {
 	}
 
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
-	json.RegisterExtension(&u64SliceAsStringsCodec{})
+	json.RegisterExtension(&U64SliceAsStringsCodec{})
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var got TestString

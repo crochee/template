@@ -11,11 +11,11 @@ import (
 	jsoniter "github.com/json-iterator/go"
 )
 
-type timeZoneCodec struct {
+type TimeZoneCodec struct {
 	jsoniter.DummyExtension
 }
 
-func (extension *timeZoneCodec) UpdateStructDescriptor(structDescriptor *jsoniter.StructDescriptor) {
+func (extension *TimeZoneCodec) UpdateStructDescriptor(structDescriptor *jsoniter.StructDescriptor) {
 	for _, binding := range structDescriptor.Fields {
 		fieldType := binding.Field.Type()
 		if fieldType.Kind() == reflect.Struct && fieldType.String() == "time.Time" {

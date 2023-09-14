@@ -3,7 +3,15 @@ package extension
 import jsoniter "github.com/json-iterator/go"
 
 func Register() {
-	jsoniter.ConfigCompatibleWithStandardLibrary.RegisterExtension(&u64AsStringCodec{})
-	jsoniter.ConfigCompatibleWithStandardLibrary.RegisterExtension(&timeZoneCodec{})
-	jsoniter.ConfigCompatibleWithStandardLibrary.RegisterExtension(&u64SliceAsStringsCodec{})
+	RegisterWith(jsoniter.ConfigCompatibleWithStandardLibrary,
+		&U64AsStringCodec{},
+		&TimeZoneCodec{},
+		&U64SliceAsStringsCodec{},
+	)
+}
+
+func RegisterWith(api jsoniter.API, extensions ...jsoniter.Extension) {
+	for _, extension := range extensions {
+		api.RegisterExtension(extension)
+	}
 }
