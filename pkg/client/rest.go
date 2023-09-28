@@ -426,7 +426,7 @@ func (r *restfulClient) URL() *url.URL {
 		*finalURL = *r.baseURL
 	}
 	finalURL.Path = path.Join(finalURL.Path, p)
-	queryValues := url.Values{}
+	queryValues := finalURL.Query()
 	for key, values := range r.params {
 		for _, value := range values {
 			queryValues.Add(key, value)
