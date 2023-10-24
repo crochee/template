@@ -13,7 +13,17 @@ func NewLog(writerFrom func(context.Context) interface {
 	Infof(string, ...interface{})
 	Warnf(string, ...interface{})
 	Errorf(string, ...interface{})
-}, cfg logger.Config) logger.Interface {
+}, opts ...func(*logger.Config)) logger.Interface {
+	cfg := logger.Config{
+		SlowThreshold:             200 * time.Millisecond,
+		LogLevel:                  logger.Warn,
+		IgnoreRecordNotFoundError: false,
+		Colorful:                  true,
+	}
+	for _, o := range opts {
+		o(&cfg)
+	}
+
 	var (
 		infoStr      = "%s\n[info] "
 		warnStr      = "%s\n[warn] "
