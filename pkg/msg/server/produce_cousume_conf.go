@@ -10,7 +10,7 @@ import (
 	"template/pkg/storage"
 )
 
-type ClientFunc func(context.Context, ...storage.Opt) *storage.DB
+type ClientFunc func(context.Context) *storage.DB
 
 var dbClient ClientFunc
 

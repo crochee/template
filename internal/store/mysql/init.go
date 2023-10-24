@@ -4,17 +4,17 @@ import (
 	"context"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
+	"gorm.io/gorm/logger"
 
 	"template/internal/store"
+	"template/pkg/logger/gormx"
 	"template/pkg/storage"
 )
 
 // NewMysqlClient create mysql factory with context.Context
 func NewMysqlClient(ctx context.Context) (*dataStore, error) {
 	c, err := storage.New(ctx,
-		storage.WithDBDebug(viper.GetString("mode") != gin.ReleaseMode),
 		storage.WithUser(viper.GetString("mysql.user")),
 		storage.WithPassword(viper.GetString("mysql.password")),
 		storage.WithIP(viper.GetString("mysql.ip")),
@@ -24,7 +24,15 @@ func NewMysqlClient(ctx context.Context) (*dataStore, error) {
 		storage.WithMaxOpenConn(viper.GetInt("mysql.max_open_conns")),
 		storage.WithMaxIdleConn(viper.GetInt("mysql.max_idle_conns")),
 		storage.WithMaxLifetime(time.Duration(viper.GetInt("mysql.conn_max_lifetime"))*time.Second),
-	)
+		storage.WithLogger(storage.NewLog(gormx.NewGormWriterFrom, logger.Config{
+			SlowThreshold:             200 * time.Millisecond,
+			LogLevel:                  logger.Warn,
+			IgnoreRecordNotFoundError: false,
+			Colorful:                  true,
+		})),
+		storage.WithPlugins(
+			storage.IgnoreSelectLogger{},
+		))
 	if err != nil {
 		return nil, err
 	}
@@ -37,8 +45,7 @@ type dataStore struct {
 
 func (d *dataStore) Begin() store.Store {
 	return &dataStore{DB: &storage.DB{
-		DB:    d.DB.Begin(),
-		Debug: d.DB.Debug,
+		DB: d.DB.Begin(),
 	}}
 }
 
