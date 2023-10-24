@@ -42,13 +42,13 @@ func (*CleanPolicyConfig) TableName() string {
 	return "clean_policy_config"
 }
 
-func Register(ctx context.Context, connector func(context.Context, ...storage.Opt) *storage.DB) error {
+func Register(ctx context.Context, connector func(context.Context) *storage.DB) error {
 	return connector(ctx).Set("gorm:table_options",
 		"ENGINE=InnoDB COMMENT='清理任务的策略配置' DEFAULT CHARSET='utf8mb4'").
 		AutoMigrate(&CleanPolicyConfig{})
 }
 
-func NewDBPolicyGetter(name string, connector func(context.Context, ...storage.Opt) *storage.DB) *dbPolicyGetter {
+func NewDBPolicyGetter(name string, connector func(context.Context) *storage.DB) *dbPolicyGetter {
 	return &dbPolicyGetter{
 		connector: connector,
 		name:      name,
@@ -56,7 +56,7 @@ func NewDBPolicyGetter(name string, connector func(context.Context, ...storage.O
 }
 
 type dbPolicyGetter struct {
-	connector func(context.Context, ...storage.Opt) *storage.DB
+	connector func(context.Context) *storage.DB
 	name      string
 }
 
