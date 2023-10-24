@@ -23,7 +23,7 @@ type area struct {
 
 func (a area) List(ctx context.Context, req *request.QueryAreaListReq) ([]*model.Area, error) {
 	var objs []*model.Area
-	query := a.With(ctx).Model(&model.Area{})
+	query := a.WithContext(ctx).Model(&model.Area{})
 	if req.AreaName != "" {
 		query = query.Where("area_name = ?", req.AreaName)
 	}

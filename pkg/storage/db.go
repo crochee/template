@@ -10,14 +10,9 @@ import (
 	"gorm.io/gorm"
 	glogger "gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
-
-	"template/pkg/logger"
-	"template/pkg/logger/gormx"
 )
 
 type option struct {
-	debug bool
-
 	maxOpenConn int
 	maxIdleConn int
 
@@ -32,15 +27,11 @@ type option struct {
 	readTimeout     time.Duration
 	writeTimeout    time.Duration
 	connMaxLifetime time.Duration
+	logger          glogger.Interface
+	plugins         []gorm.Plugin
 }
 
 type Option func(*option)
-
-func WithDBDebug(debug bool) Option {
-	return func(o *option) {
-		o.debug = debug
-	}
-}
 
 func WithMaxOpenConn(maxOpenConn int) Option {
 	return func(o *option) {
@@ -114,10 +105,21 @@ func WithMaxLifetime(connMaxLifetime time.Duration) Option {
 	}
 }
 
+func WithLogger(logger glogger.Interface) Option {
+	return func(o *option) {
+		o.logger = logger
+	}
+}
+
+func WithPlugins(plugins ...gorm.Plugin) Option {
+	return func(o *option) {
+		o.plugins = plugins
+	}
+}
+
 // New init DB
 func New(ctx context.Context, opts ...Option) (*DB, error) {
 	o := &option{
-		debug:       true,
 		maxOpenConn: 100,
 		maxIdleConn: 80,
 		ip:          "127.0.0.1",
@@ -139,16 +141,20 @@ func New(ctx context.Context, opts ...Option) (*DB, error) {
 				return time.Now().UTC()
 			},
 			PrepareStmt: true,
+			Logger:      o.logger,
 		},
 	)
 	if err != nil {
 		return nil, err
 	}
-	session := &gorm.Session{Context: ctx}
-	if o.debug { // 是否显示sql语句
-		session.Logger = client.Logger.LogMode(glogger.Info)
+	// 插件注入
+	for _, plugin := range o.plugins {
+		if err = client.Use(plugin); err != nil {
+			return nil, err
+		}
 	}
-	client = client.Session(session)
+	// 注入context
+	client = client.WithContext(ctx)
 
 	var sqlDB *sql.DB
 	if sqlDB, err = client.DB(); err != nil {
@@ -159,8 +165,7 @@ func New(ctx context.Context, opts ...Option) (*DB, error) {
 	sqlDB.SetMaxIdleConns(o.maxIdleConn)        // 默认值2
 	sqlDB.SetConnMaxLifetime(o.connMaxLifetime) // 默认值0，永不过期
 
-	c := &DB{DB: client, Debug: o.debug}
-	return c, nil
+	return &DB{DB: client}, nil
 }
 
 func Dsn(user, password, ip, port, database, charset string, timeout, readTimeout, writeTimeout time.Duration) string {
@@ -178,18 +183,8 @@ func Dsn(user, password, ip, port, database, charset string, timeout, readTimeou
 	return uri
 }
 
-type opt struct {
-	slowThreshold time.Duration
-	colorful      bool
-	levelFunc     func(glogger.LogLevel, bool) glogger.LogLevel
-	debug         bool
-}
-
-type Opt func(*opt)
-
 type DB struct {
 	*gorm.DB
-	Debug bool
 }
 
 func (d *DB) Close() error {
@@ -198,54 +193,4 @@ func (d *DB) Close() error {
 		return err
 	}
 	return s.Close()
-}
-
-// With options to set orm logger
-func (d *DB) With(ctx context.Context, opts ...Opt) *DB {
-	l := logger.From(ctx)
-	o := &opt{
-		slowThreshold: 10 * time.Second,
-		colorful:      false,
-		levelFunc:     getLevel,
-	}
-	for _, f := range opts {
-		f(o)
-	}
-	c := &DB{DB: d.Session(&gorm.Session{
-		Context: ctx,
-		Logger: gormx.NewLog(l, o.debug || d.Debug, glogger.Config{
-			SlowThreshold: o.slowThreshold,
-			Colorful:      o.colorful,
-			LogLevel:      o.levelFunc(glogger.Info, d.Debug),
-		}),
-	}),
-		Debug: d.Debug,
-	}
-	return c
-}
-
-func getLevel(l glogger.LogLevel, debug bool) glogger.LogLevel {
-	if debug {
-		return glogger.Info
-	}
-	return l
-}
-
-func WithLevelHandle(f func(glogger.LogLevel, bool) glogger.LogLevel) Opt {
-	return func(o *opt) {
-		o.levelFunc = f
-	}
-}
-
-func WithDebug(debug bool) Opt {
-	return func(o *opt) {
-		o.debug = debug
-	}
-}
-
-func NoInfoHandle(level glogger.LogLevel, _ bool) glogger.LogLevel {
-	if level > glogger.Warn {
-		return glogger.Warn
-	}
-	return level
 }

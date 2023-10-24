@@ -143,7 +143,7 @@ func (p *parallelTask) Rollback(ctx context.Context, input interface{}, callback
 				case <-ctx.Done():
 					return ctx.Err()
 				default:
-					return tempTask.Commit(ctx, input, callbacks...)
+					return tempTask.Rollback(ctx, input, callbacks...)
 				}
 			})
 		}

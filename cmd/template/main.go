@@ -45,11 +45,6 @@ func main() {
 	if mode := strings.ToLower(viper.GetString("mode")); mode != "" {
 		gin.SetMode(mode)
 	}
-	// 初始化系统日志
-	zap.ReplaceGlobals(logger.New(
-		logger.WithFields(zap.String("service", v.ServiceName)),
-		logger.WithLevel(viper.GetString("log.level")),
-		logger.WithWriter(logger.SetWriter(viper.GetBool("log.console"), ""))))
 	if err := run(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Fatal(err)
 	}
@@ -79,7 +74,7 @@ func run() error {
 			return ctx
 		},
 	}
-	zap.S().Debugf("listen on %s", srv.Addr)
+	logger.From(ctx).Sugar().Debugf("listen on %s", srv.Addr)
 	// 服务启动流程
 	g.Go(func(ctx context.Context) error {
 		return startAction(ctx, srv)
@@ -88,11 +83,14 @@ func run() error {
 	g.Go(func(ctx context.Context) error {
 		return shutdownAction(ctx, srv)
 	})
-	// 启动mq
+
+	defer logger.From(ctx).Sync()
+
 	if err = g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		logger.From(ctx).Error("server run with error", zap.Error(err))
 		return err
 	}
-	return logger.From(ctx).Sync()
+	return nil
 }
 
 func startAction(ctx context.Context, srv *http.Server) error {
@@ -121,6 +119,6 @@ func shutdownAction(ctx context.Context, srv *http.Server) error {
 	}
 	newCtx, cancel := context.WithTimeout(ctx, DefaultStopTime)
 	defer cancel()
-	zap.L().Info("shutting down server...")
+	logger.From(ctx).Info("shutting down server...")
 	return multierr.Append(err, srv.Shutdown(newCtx))
 }
