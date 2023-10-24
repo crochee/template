@@ -16,7 +16,7 @@ func NewLog(writerFrom func(context.Context) interface {
 }, opts ...func(*logger.Config)) logger.Interface {
 	cfg := logger.Config{
 		SlowThreshold:             200 * time.Millisecond,
-		LogLevel:                  logger.Warn,
+		LogLevel:                  logger.Info,
 		IgnoreRecordNotFoundError: false,
 		Colorful:                  true,
 	}
