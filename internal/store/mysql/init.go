@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/spf13/viper"
-	"gorm.io/gorm/logger"
 
 	"template/internal/store"
 	"template/pkg/logger/gormx"
@@ -24,12 +23,7 @@ func NewMysqlClient(ctx context.Context) (*dataStore, error) {
 		storage.WithMaxOpenConn(viper.GetInt("mysql.max_open_conns")),
 		storage.WithMaxIdleConn(viper.GetInt("mysql.max_idle_conns")),
 		storage.WithMaxLifetime(time.Duration(viper.GetInt("mysql.conn_max_lifetime"))*time.Second),
-		storage.WithLogger(storage.NewLog(gormx.NewGormWriterFrom, logger.Config{
-			SlowThreshold:             200 * time.Millisecond,
-			LogLevel:                  logger.Warn,
-			IgnoreRecordNotFoundError: false,
-			Colorful:                  true,
-		})),
+		storage.WithLogger(storage.NewLog(gormx.NewGormWriterFrom)),
 		storage.WithPlugins(
 			storage.IgnoreSelectLogger{},
 		))
