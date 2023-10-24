@@ -15,10 +15,10 @@ func NewLog(writerFrom func(context.Context) interface {
 	Errorf(string, ...interface{})
 }, opts ...func(*logger.Config)) logger.Interface {
 	cfg := logger.Config{
-		SlowThreshold:             200 * time.Millisecond,
+		SlowThreshold:             10 * time.Second,
 		LogLevel:                  logger.Info,
 		IgnoreRecordNotFoundError: false,
-		Colorful:                  true,
+		Colorful:                  false,
 	}
 	for _, o := range opts {
 		o(&cfg)
