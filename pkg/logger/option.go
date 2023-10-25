@@ -8,11 +8,12 @@ import (
 )
 
 type option struct {
-	skip    int
-	level   zapcore.Level
-	encoder func(zapcore.EncoderConfig) zapcore.Encoder
-	writer  io.Writer
-	fields  []zap.Field
+	skip       int
+	level      string
+	encoder    func(zapcore.EncoderConfig) zapcore.Encoder
+	writer     io.Writer
+	serverName string
+	fields     []zap.Field
 }
 
 type Option func(*option)
@@ -25,7 +26,7 @@ func WithSkip(skip int) Option {
 
 func WithLevel(level string) Option {
 	return func(o *option) {
-		o.level = newLevel(level)
+		o.level = level
 	}
 }
 
@@ -44,5 +45,11 @@ func WithWriter(w io.Writer) Option {
 func WithFields(fields ...zap.Field) Option {
 	return func(o *option) {
 		o.fields = fields
+	}
+}
+
+func WithServerName(name string) Option {
+	return func(o *option) {
+		o.serverName = name
 	}
 }

@@ -8,11 +8,19 @@ import (
 	"template/pkg/logger"
 )
 
-func NewGormWriterFrom(ctx context.Context) interface {
+func NewZapGormWriterFrom(ctx context.Context) interface {
 	Infof(string, ...interface{})
 	Warnf(string, ...interface{})
 	Errorf(string, ...interface{})
 } {
 	l := logger.From(ctx).WithOptions(zap.WithCaller(false))
 	return l.Sugar()
+}
+
+func NewZeroGormWriterFrom(ctx context.Context) interface {
+	Infof(string, ...interface{})
+	Warnf(string, ...interface{})
+	Errorf(string, ...interface{})
+} {
+	return logger.FromContext(ctx)
 }
