@@ -2,16 +2,18 @@ package logger
 
 import (
 	"os"
+	"time"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
 	"template/pkg/logger/console"
+	"template/pkg/timex"
 )
 
 func New(opts ...Option) *zap.Logger {
 	o := &option{
-		level:   zapcore.InfoLevel,
+		level:   zapcore.InfoLevel.String(),
 		encoder: console.NewConsoleEncoder,
 		writer:  os.Stdout,
 	}
@@ -22,11 +24,11 @@ func New(opts ...Option) *zap.Logger {
 	core := zapcore.NewCore(
 		o.encoder(newEncoderConfig()),
 		zap.CombineWriteSyncers(zapcore.AddSync(o.writer)),
-		o.level,
-	).With(o.fields) // 自带node 信息
+		newLevel(o.level),
+	).With(append(o.fields, zap.String("service_name", o.serverName))) // 自带node 信息
 	// 大于error增加堆栈信息
 	return zap.New(core).WithOptions(zap.AddCaller(), zap.AddCallerSkip(o.skip),
-		zap.AddStacktrace(zapcore.DPanicLevel))
+		zap.AddStacktrace(zapcore.DPanicLevel), zap.WithClock(systemClock{}))
 }
 
 func newEncoderConfig() zapcore.EncoderConfig {
@@ -52,4 +54,15 @@ func newLevel(level string) zapcore.Level {
 		l = zap.InfoLevel
 	}
 	return l
+}
+
+// systemClock implements default Clock that uses system time.
+type systemClock struct{}
+
+func (systemClock) Now() time.Time {
+	return time.Now().In(timex.CST)
+}
+
+func (systemClock) NewTicker(duration time.Duration) *time.Ticker {
+	return time.NewTicker(duration)
 }

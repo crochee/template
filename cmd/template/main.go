@@ -53,7 +53,7 @@ func main() {
 func run() error {
 	ctx := logger.With(context.Background(),
 		logger.New(
-			logger.WithFields(zap.String("service", v.ServiceName)),
+			logger.WithServerName(viper.GetString("service.name")),
 			logger.WithLevel(viper.GetString("log.level")),
 			logger.WithWriter(logger.SetWriter(viper.GetBool("log.console"), ""))),
 	)

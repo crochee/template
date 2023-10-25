@@ -23,7 +23,7 @@ func NewMysqlClient(ctx context.Context) (*dataStore, error) {
 		storage.WithMaxOpenConn(viper.GetInt("mysql.max_open_conns")),
 		storage.WithMaxIdleConn(viper.GetInt("mysql.max_idle_conns")),
 		storage.WithMaxLifetime(time.Duration(viper.GetInt("mysql.conn_max_lifetime"))*time.Second),
-		storage.WithLogger(storage.NewLog(gormx.NewGormWriterFrom)),
+		storage.WithLogger(storage.NewLog(gormx.NewZapGormWriterFrom)),
 		storage.WithPlugins(
 			storage.IgnoreSelectLogger{},
 		))
