@@ -10,7 +10,7 @@ COMMIT=${1}
 mkdir -p out && cd out && \
 git clone ${REPO} && cd ${NAME}
 # 切换分支
-if [[ -z "${COMMIT}" ]]; then
+if test -z "${COMMIT}" ; then
   git checkout -B master origin/master
 else
   git checkout -B  origin/${COMMIT}
