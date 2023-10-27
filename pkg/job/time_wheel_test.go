@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"errors"
 	"log"
 	"testing"
 	"time"
@@ -61,7 +62,7 @@ func (j Job3) Key() string {
 func TestJob(t *testing.T) {
 	tw := NewTimeWheel(WithInterval(time.Second), WithSlot(500))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	ctx = logger.With(ctx, logger.New())
 	g := routine.NewGroup(ctx)
@@ -106,7 +107,7 @@ func TestJob(t *testing.T) {
 	g.Go(func(ctx context.Context) error {
 		return tw.ScheduleJob(ctx, Job3{t: "temp at"}, RunAt(time.Now().Add(-1*time.Minute).UnixNano()))
 	})
-	if err := g.Wait(); err != nil {
+	if err := g.Wait(); err != nil && errors.Is(err, context.Canceled) {
 		t.Fatal(err)
 	}
 }

@@ -688,7 +688,7 @@ func Test_memoryStats_filterMetricsByLabels(t *testing.T) {
 				link: tt.fields.link,
 				all:  tt.fields.all,
 			}
-			m.filterMetricsByLabels(tt.args.labels, tt.args.metricFamily)
+			m.filterMetricsByLabels([]model.Labels{tt.args.labels}, tt.args.metricFamily)
 
 			// 开始校验结果
 			if len(tt.args.metricFamily.Metrics) != tt.want {

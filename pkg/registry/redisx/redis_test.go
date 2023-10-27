@@ -58,8 +58,8 @@ func TestRedis(t *testing.T) {
 		cli,
 		WithEncoder(encoder),
 		WithEventFlow(ef),
-		WithExpireTime(30*time.Second),
-		WithTickerTime(15*time.Second),
+		WithExpireTime(4*time.Second),
+		WithTickerTime(2*time.Second),
 	)
 	info := &registry.Info{
 		UUID:        uuid.NewV4().String(),
@@ -79,7 +79,7 @@ func TestRedis(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	time.Sleep(70 * time.Second)
+	time.Sleep(7 * time.Second)
 }
 
 func TestRedis1(t *testing.T) {
@@ -126,8 +126,8 @@ func TestRedis1(t *testing.T) {
 		cli,
 		WithEncoder(encoder),
 		WithEventFlow(ef),
-		WithExpireTime(30*time.Second),
-		WithTickerTime(15*time.Second),
+		WithExpireTime(4*time.Second),
+		WithTickerTime(2*time.Second),
 	)
 	info := &registry.Info{
 		UUID:        uuid.NewV4().String(),
@@ -147,5 +147,5 @@ func TestRedis1(t *testing.T) {
 			t.Error(err)
 		}
 	}()
-	time.Sleep(70 * time.Second)
+	time.Sleep(7 * time.Second)
 }

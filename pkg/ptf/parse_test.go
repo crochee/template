@@ -1,4 +1,4 @@
-package csv
+package ptf
 
 import (
 	"reflect"
@@ -26,7 +26,6 @@ type Content struct {
 	Inner  `csv:""`
 	Other  *Other `csv:""`
 	Value  interface{}
-	point  int
 }
 
 type Inner struct {

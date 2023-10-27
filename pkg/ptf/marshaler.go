@@ -1,4 +1,4 @@
-package csv
+package ptf
 
 import (
 	"io"
@@ -6,45 +6,45 @@ import (
 )
 
 // Headers set csv header
-func Headers(headers []string) func(*Option) {
-	return func(o *Option) {
+func Headers(headers []string) Option {
+	return func(o *option) {
 		o.headers = headers
 	}
 }
 
-func FieldNames(fieldNames []string) func(*Option) {
-	return func(o *Option) {
+func FieldNames(fieldNames []string) Option {
+	return func(o *option) {
 		o.fieldNames = fieldNames
 	}
 }
 
-func TagName(tagName string) func(*Option) {
-	return func(o *Option) {
+func TagName(tagName string) Option {
+	return func(o *option) {
 		o.tagName = tagName
 	}
 }
 
-func Writer(w io.Writer) func(*Option) {
-	return func(o *Option) {
+func Writer(w io.Writer) Option {
+	return func(o *option) {
 		o.writer = w
 	}
 }
 
-func SetHandler(h Handler) func(*Option) {
-	return func(o *Option) {
+func SetHandler(h Handler) Option {
+	return func(o *option) {
 		o.handler = h
 	}
 }
 
-func Sheet(sheet string) func(*Option) {
-	return func(o *Option) {
+func Sheet(sheet string) Option {
+	return func(o *option) {
 		o.sheet = sheet
 	}
 }
 
 type Handler func(name string, headers []string, rows [][]interface{}, w io.Writer) error
 
-type Option struct {
+type option struct {
 	tagName    string
 	fieldNames []string
 	headers    []string
@@ -53,26 +53,30 @@ type Option struct {
 	sheet      string
 }
 
-func NewMarshal(opts ...func(*Option)) *marshal {
-	option := Option{
+type Option func(*option)
+
+func NewMarshal(opts ...Option) *marshal {
+	opt := option{
 		tagName:    "csv",
 		fieldNames: []string{"List"},
 		headers:    []string{},
 		writer:     os.Stdout,
-		handler:    CsvHandler,
-		sheet:      "csv",
+		handler: func(name string, headers []string, rows [][]interface{}, w io.Writer) error {
+			return nil
+		},
+		sheet: "csv",
 	}
-	for _, opt := range opts {
-		opt(&option)
+	for _, f := range opts {
+		f(&opt)
 	}
 	return &marshal{
-		fieldNames: option.fieldNames,
-		headers:    option.headers,
+		fieldNames: opt.fieldNames,
+		headers:    opt.headers,
 		expose:     expose{},
-		parser:     &parse{tagName: option.tagName},
-		w:          option.writer,
-		handler:    option.handler,
-		sheet:      option.sheet,
+		parser:     &parse{tagName: opt.tagName},
+		w:          opt.writer,
+		handler:    opt.handler,
+		sheet:      opt.sheet,
 	}
 }
 
