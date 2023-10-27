@@ -89,7 +89,7 @@ func TestValues_BasicTypes(t *testing.T) {
 			struct {
 				V time.Time
 			}{time.Date(2000, 1, 1, 12, 34, 56, 0, time.UTC)},
-			url.Values{"V": {"2000-01-01T12:34:56Z"}},
+			url.Values{"V": {"2000-01-01 12:34:56"}},
 		},
 		{
 			struct {

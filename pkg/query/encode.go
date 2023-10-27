@@ -29,7 +29,6 @@ import (
 	"strings"
 	"time"
 
-	"template/pkg/utils"
 	vx "template/pkg/utils/v"
 )
 
@@ -315,7 +314,7 @@ func valueString(v reflect.Value, opts tagOptions, sf reflect.StructField) strin
 		return t.Format(vx.FormatTime)
 	}
 
-	return utils.ToString(v.Interface())
+	return fmt.Sprint(v.Interface())
 }
 
 // isEmptyValue checks if a value should be considered empty for the purposes

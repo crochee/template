@@ -17,9 +17,9 @@ import (
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
 
-	"template/pkg/client/query"
 	"template/pkg/json"
 	"template/pkg/logger"
+	"template/pkg/query"
 	"template/pkg/utils"
 )
 

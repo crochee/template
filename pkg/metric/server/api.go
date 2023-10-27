@@ -12,8 +12,8 @@ import (
 	"template/pkg/logger"
 	"template/pkg/metric"
 	"template/pkg/metric/model"
+	"template/pkg/ptf"
 	"template/pkg/resp"
-	"template/pkg/resp/csv"
 )
 
 var defaultFilterDay = []int{1, 2, 3, 4, 5, 6, 7}
@@ -122,7 +122,7 @@ func listMetricDetail(c *gin.Context) {
 	}
 	if param.Table {
 		tableHeader, sheet := metric.GenerateTableAttr(filter)
-		resp.SuccessWithFile(c, response, sheet, csv.Headers(tableHeader))
+		resp.SuccessWithFile(c, response, sheet, ptf.Headers(tableHeader))
 		return
 	}
 	c.JSON(http.StatusOK, response)

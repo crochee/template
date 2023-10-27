@@ -53,15 +53,21 @@ func XlsxHandler(sheet string, headers []string, rows [][]interface{}, w io.Writ
 	f.SetActiveSheet(index)
 	f.DeleteSheet("Sheet1")
 	for k, v := range headers {
-		f.SetCellValue(sheet, id2index(k, 1), v)
+		if err := f.SetCellValue(sheet, id2index(k, 1), v); err != nil {
+			return err
+		}
 	}
 	for i, row := range rows {
 		for j, v := range row {
 			switch value := v.(type) {
 			case uint64, int64:
-				f.SetCellStr(sheet, id2index(j, i+2), fmt.Sprint(value))
+				if err := f.SetCellStr(sheet, id2index(j, i+2), fmt.Sprint(value)); err != nil {
+					return err
+				}
 			default:
-				f.SetCellValue(sheet, id2index(j, i+2), value)
+				if err := f.SetCellValue(sheet, id2index(j, i+2), value); err != nil {
+					return err
+				}
 			}
 		}
 	}

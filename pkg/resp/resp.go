@@ -9,10 +9,12 @@ import (
 	"github.com/spf13/afero/mem"
 
 	"template/pkg/code"
+	"template/pkg/ptf"
 	"template/pkg/resp/csv"
 	"template/pkg/resp/xlsx"
 )
 
+// Success provides response logic for traditional DCS
 func Success(c *gin.Context, data ...interface{}) {
 	if len(data) == 0 {
 		c.Status(http.StatusNoContent)
@@ -31,6 +33,7 @@ func Success(c *gin.Context, data ...interface{}) {
 	}
 }
 
+// SuccessWithFile provide response logic for file content
 func SuccessWithFile(c *gin.Context, data ...interface{}) {
 	if len(data) == 0 {
 		c.Status(http.StatusNoContent)
@@ -41,36 +44,36 @@ func SuccessWithFile(c *gin.Context, data ...interface{}) {
 		return
 	}
 
-	opts := make([]func(*csv.Option), 0, 4)
+	opts := make([]ptf.Option, 0, 4)
 	if len(data) > 2 {
 		fieldNames := make([]string, 0)
 		for _, value := range data[2:] {
 			switch temp := value.(type) {
 			case string:
 				fieldNames = append(fieldNames, temp)
-			case func(*csv.Option):
+			case ptf.Option:
 				opts = append(opts, temp)
 			default:
 			}
 		}
 		if len(fieldNames) > 0 {
-			opts = append(opts, csv.FieldNames(fieldNames))
+			opts = append(opts, ptf.FieldNames(fieldNames))
 		}
 	}
 	file := mem.NewFileHandle(mem.CreateFile(fmt.Sprint(data[1])))
-	opts = append(opts, csv.Writer(file))
+	opts = append(opts, ptf.Writer(file))
 
 	var r render.Render
 
 	accept := c.Request.Header.Get("Accept")
 	switch accept {
 	case "application/vnd.ms-excel":
-		opts = append(opts, csv.SetHandler(xlsx.XlsxHandler), csv.Sheet(file.Name()))
+		opts = append(opts, ptf.SetHandler(xlsx.XlsxHandler), ptf.Sheet(file.Name()))
 		r = xlsx.NewXslxRender(file, c.Request)
 	default:
 		r = csv.NewCsvRender(file, c.Request)
 	}
-	err := csv.NewMarshal(opts...).Encode(data[0])
+	err := ptf.NewMarshal(opts...).Encode(data[0])
 	if err != nil {
 		Error(c, err)
 		return

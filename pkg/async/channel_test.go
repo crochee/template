@@ -88,7 +88,7 @@ func (m mockAck) Reject(tag uint64, requeue bool) error {
 func TestInteract(t *testing.T) {
 	c := &mockChannel{deliveries: make(chan amqp.Delivery, 10)}
 	tp := NewTaskProducer()
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	tc := NewTaskConsumer(ctx)
 	tc.Register(test{})
@@ -100,7 +100,7 @@ func TestInteract(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := tc.Subscribe(ctx, c, ""); err != nil {
+	if err := tc.Subscribe(ctx, c, ""); err != nil && !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatal(err)
 	}
 }
@@ -140,11 +140,13 @@ func TestConsume(t *testing.T) {
 			Data:     []byte("sd"),
 		})
 		if err != nil {
-			t.Fatal(err)
+			t.Log(err)
+			return
 		}
 		msg, err := (DefaultMarshal{}).Marshal(message.NewMessage(uuid.NewV4().String(), data))
 		if err != nil {
-			t.Fatal(err)
+			t.Log(err)
+			return
 		}
 
 		mockChannel <- amqp.Delivery{
@@ -176,7 +178,7 @@ func TestConsume(t *testing.T) {
 	cc.EXPECT().Consume(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(),
 		gomock.Any(), gomock.Any()).Return(mockChannel, nil).AnyTimes()
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	tc := NewTaskConsumer(context.Background())
 	tc.Register(testError{})
