@@ -49,8 +49,8 @@ type RESTClient interface {
 	Retry(attempts int, interval time.Duration,
 		shouldRetryFunc func(*http.Response, error) bool) RESTClient
 
-	Do(ctx context.Context, result interface{}, opts ...Func) error
-	DoNop(ctx context.Context, opts ...Func) error
+	Do(ctx context.Context, result interface{}, opts ...func(*http.Response) error) error
+	DoNop(ctx context.Context, opts ...func(*http.Response) error) error
 	DoReader(ctx context.Context) (io.Reader, error)
 }
 
@@ -370,7 +370,7 @@ func (r *restfulClient) Body(body interface{}) RESTClient {
 	return r
 }
 
-func (r *restfulClient) Do(ctx context.Context, result interface{}, opts ...Func) error {
+func (r *restfulClient) Do(ctx context.Context, result interface{}, opts ...func(*http.Response) error) error {
 	if r.err != nil {
 		return r.err
 	}
@@ -387,7 +387,7 @@ func (r *restfulClient) Do(ctx context.Context, result interface{}, opts ...Func
 	return r.c.Response().Parse(resp, result, opts...)
 }
 
-func (r *restfulClient) DoNop(ctx context.Context, opts ...Func) error {
+func (r *restfulClient) DoNop(ctx context.Context, opts ...func(*http.Response) error) error {
 	return r.Do(ctx, nil, opts...)
 }
 

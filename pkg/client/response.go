@@ -12,13 +12,13 @@ import (
 )
 
 type Response interface {
-	Parse(resp *http.Response, result interface{}, opts ...Func) error
+	Parse(resp *http.Response, result interface{}, opts ...func(*http.Response) error) error
 }
 
 type ResponseHandler struct {
 }
 
-func (o ResponseHandler) Parse(resp *http.Response, result interface{}, opts ...Func) error {
+func (o ResponseHandler) Parse(resp *http.Response, result interface{}, opts ...func(*http.Response) error) error {
 	for _, opt := range opts {
 		if err := opt(resp); err != nil {
 			return err

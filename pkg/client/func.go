@@ -9,8 +9,6 @@ import (
 	"template/pkg/json"
 )
 
-type Func func(*http.Response) error
-
 func ErrorFunc(expectStatusCode int) func(*http.Response) error {
 	return func(resp *http.Response) error {
 		if resp.StatusCode != expectStatusCode {
