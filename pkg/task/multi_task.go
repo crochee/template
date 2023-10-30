@@ -8,7 +8,7 @@ import (
 	uuid "github.com/satori/go.uuid"
 	"go.uber.org/multierr"
 
-	"template/pkg/routine"
+	"template/pkg/conc/pool"
 )
 
 type pipelineTask struct {
@@ -106,7 +106,7 @@ type parallelTask struct {
 
 func (p *parallelTask) Commit(ctx context.Context, input interface{}, callbacks ...Callback) error {
 	p.SetState(Running)
-	g := routine.NewGroup(ctx)
+	g := pool.New().WithContext(ctx).WithCancelOnError()
 	for index, task := range p.tasks {
 		tempTask := task
 		tempIndex := strconv.Itoa(index)
@@ -130,7 +130,7 @@ func (p *parallelTask) Commit(ctx context.Context, input interface{}, callbacks 
 }
 
 func (p *parallelTask) Rollback(ctx context.Context, input interface{}, callbacks ...Callback) error {
-	g := routine.NewGroup(ctx)
+	g := pool.New().WithContext(ctx).WithCancelOnError()
 	for index, task := range p.tasks {
 		v, ok := p.safeMap.Get(strconv.Itoa(index))
 		if !ok {

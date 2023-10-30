@@ -9,8 +9,8 @@ import (
 
 	"go.uber.org/zap"
 
+	"template/pkg/conc/pool"
 	"template/pkg/logger"
-	"template/pkg/routine"
 )
 
 type Job1 struct {
@@ -65,7 +65,7 @@ func TestJob(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	ctx = logger.With(ctx, logger.New())
-	g := routine.NewGroup(ctx)
+	g := pool.New().WithContext(ctx)
 	g.Go(tw.Start)
 	g.Go(func(ctx context.Context) error {
 		return tw.ScheduleJob(ctx, Job1{}, Every(5*time.Second))
@@ -92,11 +92,11 @@ func TestJob(t *testing.T) {
 	g.Go(func(ctx context.Context) error {
 		return tw.ScheduleJob(ctx, Job3{t: "temp"}, RunOnce(0))
 	})
-	g.Go(func(ctx context.Context) error {
+	g.Go(func(_ context.Context) error {
 		log.Println(tw.GetJobKeys())
 		return nil
 	})
-	g.Go(func(ctx context.Context) error {
+	g.Go(func(_ context.Context) error {
 		log.Println(tw.GetScheduledJob("12"))
 		return nil
 	})
