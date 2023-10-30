@@ -25,9 +25,9 @@ import (
 	"template/internal/router"
 	"template/internal/store/mysql"
 	"template/internal/util/v"
+	"template/pkg/conc/pool"
 	"template/pkg/json/extension"
 	"template/pkg/logger"
-	"template/pkg/routine"
 	"template/pkg/validator"
 )
 
@@ -66,7 +66,7 @@ func run() error {
 	// 后台调用注册实现
 	client := gateway.NewBaseClient()
 
-	g := routine.NewGroup(ctx)
+	g := pool.New().WithContext(ctx).WithCancelOnError()
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: router.New(dataStore, client),

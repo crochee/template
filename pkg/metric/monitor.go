@@ -2,16 +2,15 @@ package metric
 
 import (
 	"context"
-	"runtime/debug"
 	"strconv"
 	"time"
 
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
+	"template/pkg/conc/pool"
 	"template/pkg/logger"
 	"template/pkg/metric/model"
-	"template/pkg/routine"
 )
 
 type option struct {
@@ -54,17 +53,8 @@ func New(ctx context.Context, opts ...Option) *monitor {
 		f(o)
 	}
 	return &monitor{
-		handler: o.handler,
-		pool: routine.NewPool(ctx,
-			routine.CopyContext(func(dst context.Context, src context.Context) context.Context {
-				return dst
-			}),
-			routine.Recover(func(ctx context.Context, i interface{}) {
-				logger.From(ctx).Error("recover",
-					zap.Any("error", i),
-					zap.ByteString("stack", debug.Stack()))
-			}),
-		),
+		handler:         o.handler,
+		pool:            pool.New().WithContext(ctx),
 		goroutineLength: o.goroutineNums,
 		value:           NewStore(int(o.bucketNums)),
 	}
@@ -72,19 +62,19 @@ func New(ctx context.Context, opts ...Option) *monitor {
 
 type monitor struct {
 	handler         Handler
-	pool            *routine.Pool
+	pool            *pool.ContextPool
 	goroutineLength uint8
 	value           *memoryStats
 }
 
 func (m *monitor) Run(metricChannel <-chan Writer) {
 	for i := 0; i < int(m.goroutineLength); i++ {
-		m.pool.Go(context.Background(), func(ctx context.Context) {
+		m.pool.Go(func(ctx context.Context) error {
 			for {
 				select {
 				case w, ok := <-metricChannel:
 					if !ok {
-						return
+						return nil
 					}
 					metric := &model.Metric{}
 					if err := w.Write(metric); err != nil {
@@ -92,12 +82,12 @@ func (m *monitor) Run(metricChannel <-chan Writer) {
 					}
 					m.work(m.handler.Handle(metric))
 				case <-ctx.Done():
-					return
+					return ctx.Err()
 				}
 			}
 		})
 	}
-	m.pool.Wait()
+	_ = m.pool.Wait()
 }
 
 func (m *monitor) work(metric *model.Metric) {
