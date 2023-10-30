@@ -1,19 +1,17 @@
-package base
+package client
 
 import (
 	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"template/pkg/client"
 )
 
 func Test_convertBody(t *testing.T) {
 	c := &coPartner{
-		ak:              "ak",
-		sk:              "sk",
-		OriginalRequest: client.OriginalRequest{},
+		ak:  "ak",
+		sk:  "sk",
+		req: OriginalRequest{},
 	}
 	type Inner struct {
 		Content string
@@ -107,9 +105,9 @@ func Test_sign(t *testing.T) {
 	h := make(http.Header)
 	h.Set(HeaderKeySignedHeader, "0")
 	c := &coPartner{
-		ak:              "ak",
-		sk:              "sk",
-		OriginalRequest: client.OriginalRequest{},
+		ak:  "ak",
+		sk:  "sk",
+		req: OriginalRequest{},
 	}
 	type args struct {
 		method    string

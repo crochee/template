@@ -1,4 +1,4 @@
-package req
+package client
 
 import (
 	"bytes"
@@ -6,7 +6,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,9 +17,8 @@ import (
 
 	"github.com/pkg/errors"
 
-	"template/pkg/client"
 	"template/pkg/code"
-	jsonx "template/pkg/json"
+	"template/pkg/json"
 	"template/pkg/utils"
 	pv "template/pkg/utils/v"
 )
@@ -30,18 +28,18 @@ const (
 )
 
 // NewCoPartner 合作伙伴API请求构造
-func NewCoPartner(ak, sk string) client.Requester {
+func NewCoPartner(ak, sk string) *coPartner {
 	return &coPartner{
-		ak:              ak,
-		sk:              sk,
-		OriginalRequest: client.OriginalRequest{},
+		ak:  ak,
+		sk:  sk,
+		req: OriginalRequest{},
 	}
 }
 
 type coPartner struct {
-	ak string
-	sk string
-	client.OriginalRequest
+	ak  string
+	sk  string
+	req Requester
 }
 
 func (c coPartner) Build(ctx context.Context, method, url string, body interface{}, headers http.Header) (*http.Request, error) {
@@ -55,7 +53,7 @@ func (c coPartner) Build(ctx context.Context, method, url string, body interface
 			body = buf
 		}
 	}
-	req, err := c.OriginalRequest.Build(ctx, method, url, body, headers)
+	req, err := c.req.Build(ctx, method, url, body, headers)
 	if err != nil {
 		return nil, err
 	}
@@ -142,14 +140,14 @@ func (c coPartner) convertBody(body interface{}) (map[string][]string, error) {
 		reader = bytes.NewReader(content)
 	}
 	data := map[string]json.RawMessage{}
-	if err := jsonx.DecodeUseNumber(reader, &data); err != nil {
+	if err := json.DecodeUseNumber(reader, &data); err != nil {
 		return nil, errors.WithStack(code.ErrParseContent.WithResult(err))
 	}
 	result := make(map[string][]string, len(data))
 	for key, value := range data {
 		var temp interface{}
 		if value != nil {
-			if err := jsonx.UnmarshalNumber(value, &temp); err != nil {
+			if err := json.UnmarshalNumber(value, &temp); err != nil {
 				return nil, errors.WithStack(code.ErrParseContent.WithResult(err.Error()))
 			}
 		}

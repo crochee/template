@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"template/internal/gateway/base"
 	"template/pkg/client"
 )
 
@@ -94,8 +93,13 @@ type QueryAreaListParam struct {
 
 func (a AreaClient) List(ctx context.Context, param *QueryAreaListParam) (*GetAreasDetailRsp, error) {
 	var result GetAreasDetailRsp
-	if err := a.To().WithRequest(base.IfpRequest{}).
-		WithResponse(base.Parser{}).
+	if err := a.To().WithRequest(client.HeaderRequest{
+		GetHeaders: func(ctx context.Context) http.Header {
+			return nil
+		},
+		CoPartner: client.NewCoPartner("ak", "sk"),
+	}).
+		WithResponse(client.Parser{}).
 		Method(http.MethodGet).
 		Prefix("v2").
 		Param("page_num", param.PageNum).

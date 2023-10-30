@@ -1,27 +1,19 @@
-package base
+package client
 
 import (
-	"encoding/json"
 	"net/http"
 	"strconv"
 
 	"github.com/pkg/errors"
 
-	"template/pkg/client"
 	"template/pkg/code"
-	jsonx "template/pkg/json"
+	"template/pkg/json"
 )
-
-type Response struct {
-	Code    int              `json:"code"`
-	Message string           `json:"message"`
-	Result  *json.RawMessage `json:"result,omitempty"`
-}
 
 type Parser struct {
 }
 
-func (p Parser) Parse(resp *http.Response, result interface{}, opts ...client.Func) error {
+func (p Parser) Parse(resp *http.Response, result interface{}, opts ...func(*http.Response) error) error {
 	for _, opt := range opts {
 		if err := opt(resp); err != nil {
 			return err
@@ -30,8 +22,13 @@ func (p Parser) Parse(resp *http.Response, result interface{}, opts ...client.Fu
 	if resp.StatusCode == http.StatusNoContent {
 		return nil
 	}
-	var response Response
-	if err := jsonx.DecodeUseNumber(resp.Body, &response); err != nil {
+	var response struct {
+		Code    int              `json:"code"`
+		Message string           `json:"message"`
+		Result  *json.RawMessage `json:"result,omitempty"`
+	}
+
+	if err := json.DecodeUseNumber(resp.Body, &response); err != nil {
 		return errors.WithStack(code.ErrParseContent.WithResult(err))
 	}
 	if response.Code != http.StatusOK {
@@ -47,7 +44,7 @@ func (p Parser) Parse(resp *http.Response, result interface{}, opts ...client.Fu
 	if response.Result == nil {
 		return errors.WithStack(code.ErrParseContent.WithResult("result is nil"))
 	}
-	if err := jsonx.UnmarshalNumber(*response.Result, result); err != nil {
+	if err := json.UnmarshalNumber(*response.Result, result); err != nil {
 		return errors.WithStack(code.ErrParseContent.WithResult(err))
 	}
 	return nil

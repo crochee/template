@@ -1,15 +1,13 @@
-package req
+package client
 
 import (
 	"context"
 	"net/http"
-
-	"template/pkg/client"
 )
 
 type HeaderRequest struct {
 	GetHeaders func(ctx context.Context) http.Header
-	CoPartner  client.Requester
+	CoPartner  Requester
 }
 
 func (h HeaderRequest) Build(ctx context.Context, method, url string, body interface{}, headers http.Header) (*http.Request, error) {
