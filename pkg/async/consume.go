@@ -3,15 +3,14 @@ package async
 import (
 	"context"
 	"os"
-	"runtime/debug"
 
-	"github.com/json-iterator/go"
+	jsoniter "github.com/json-iterator/go"
 	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
 	"go.uber.org/zap"
 
+	"template/pkg/conc/pool"
 	"template/pkg/logger"
-	"template/pkg/routine"
 	"template/pkg/validator"
 )
 
@@ -27,7 +26,7 @@ type ConsumerRegistrar interface {
 }
 
 // NewTaskConsumer gets Consumer
-func NewTaskConsumer(ctx context.Context, opts ...Option) *taskConsumer {
+func NewTaskConsumer(opts ...Option) *taskConsumer {
 	o := &option{
 		manager:   NewManager(),
 		marshal:   DefaultMarshal{},
@@ -40,9 +39,7 @@ func NewTaskConsumer(ctx context.Context, opts ...Option) *taskConsumer {
 		opt(o)
 	}
 	return &taskConsumer{
-		pool: routine.NewPool(ctx, routine.Recover(func(ctx context.Context, i interface{}) {
-			logger.From(ctx).Sugar().Errorf("err:%v\n%s", i, debug.Stack())
-		})),
+		pool:      pool.New(),
 		manager:   o.manager,
 		marshal:   o.marshal,
 		handler:   o.handler,
@@ -52,7 +49,7 @@ func NewTaskConsumer(ctx context.Context, opts ...Option) *taskConsumer {
 }
 
 type taskConsumer struct {
-	pool      *routine.Pool      // goroutine safe run pool
+	pool      *pool.Pool         // goroutine safe run pool
 	manager   ManagerTaskHandler // manager executor how to run
 	marshal   MarshalAPI         // mq  assemble request or response
 	handler   jsoniter.API
@@ -93,12 +90,12 @@ func commandNameBasedUniqueConsumerTag(name string) string {
 // Subscribe consume message form Channel with queueName
 func (t *taskConsumer) Subscribe(ctx context.Context, channel Channel, queueName string) error {
 	var err error
-	t.pool.Go(ctx, func(ctx context.Context) {
+	p := t.pool.WithContext(ctx).WithCancelOnError()
+	p.Go(func(ctx context.Context) error {
 		for {
 			select {
 			case <-ctx.Done():
-				err = ctx.Err()
-				return
+				return ctx.Err()
 			default:
 			}
 			var deliveries <-chan amqp.Delivery
@@ -117,14 +114,12 @@ func (t *taskConsumer) Subscribe(ctx context.Context, channel Channel, queueName
 				false,
 				nil,
 			); err != nil {
-				logger.From(ctx).Error("Consume failed", zap.Error(err))
-				return
+				return err
 			}
 			t.handleMessage(ctx, deliveries)
 		}
 	})
-	t.pool.Wait()
-	return err
+	return p.Wait()
 }
 
 func (t *taskConsumer) handleMessage(ctx context.Context, deliveries <-chan amqp.Delivery) {
@@ -136,16 +131,18 @@ func (t *taskConsumer) handleMessage(ctx context.Context, deliveries <-chan amqp
 			if !ok {
 				return
 			}
-			t.pool.Go(ctx, func(ctx context.Context) {
+			p := t.pool.WithContext(ctx)
+			p.Go(func(ctx context.Context) error {
 				if t.autoAck {
 					if err := t.autoHandle(ctx, v); err != nil {
 						logger.From(ctx).Error("", zap.Error(err))
 					}
-					return
+					return nil
 				}
 				if err := t.manualHandle(ctx, v); err != nil {
 					logger.From(ctx).Error("", zap.Error(err))
 				}
+				return nil
 			})
 		}
 	}

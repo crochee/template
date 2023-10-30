@@ -3,16 +3,15 @@ package msg
 
 import (
 	"context"
-	"runtime/debug"
 	"time"
 
-	"github.com/json-iterator/go"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/streadway/amqp"
 	"go.uber.org/zap"
 
 	"template/pkg/async"
+	"template/pkg/conc/pool"
 	"template/pkg/logger"
-	"template/pkg/routine"
 	"template/pkg/validator"
 )
 
@@ -30,6 +29,7 @@ func NewReader(opts ...func(*ReaderOption)) *reader {
 			Handles:      make([]func(*Metadata) error, 0, 2),
 			Marshal:      async.DefaultMarshal{},
 		},
+		pool: pool.New(),
 	}
 	for _, o := range opts {
 		o(&r.ReaderOption)
@@ -52,15 +52,13 @@ type ReaderOption struct {
 
 type reader struct {
 	queuePool QueuePool
-	pool      *routine.Pool // goroutine safe run pool
+	pool      *pool.Pool // goroutine safe run pool
 	ReaderOption
 }
 
 func (r *reader) Subscribe(ctx context.Context, channel async.Channel, queueName string) error {
 	// 初始化
-	r.pool = routine.NewPool(ctx, routine.Recover(func(ctx context.Context, i interface{}) {
-		logger.From(ctx).Sugar().Errorf("err:%v\n%s", i, debug.Stack())
-	}))
+	p := r.pool.WithContext(ctx).WithCancelOnError()
 	if r.queuePool == nil {
 		r.queuePool = NewQueuePool(ctx, 30*time.Second, 90*time.Second, func() Queue {
 			return NewPriorityQueue(r.LevelFunc)
@@ -72,19 +70,16 @@ func (r *reader) Subscribe(ctx context.Context, channel async.Channel, queueName
 		}
 	})
 	// 业务处理
-	var err error
-	r.pool.Go(ctx, func(ctx context.Context) {
+	p.Go(func(ctx context.Context) error {
 		// 失败次数
 		var failedCount = 5
 		for {
 			select {
 			case <-ctx.Done():
-				err = ctx.Err()
-				return
+				return ctx.Err()
 			default:
 			}
-			var deliveries <-chan amqp.Delivery
-			if deliveries, err = channel.Consume(
+			deliveries, err := channel.Consume(
 				queueName,
 				// 用来区分多个消费者
 				"dcs.consumer."+queueName,
@@ -98,20 +93,21 @@ func (r *reader) Subscribe(ctx context.Context, channel async.Channel, queueName
 				// 是否为阻塞
 				false,
 				nil,
-			); err != nil {
+			)
+			if err != nil {
 				logger.From(ctx).Error("", zap.Error(err))
 				if failedCount < 1 {
-					return
+					return err
 				}
 				failedCount--
 				continue
 			}
 			r.handleMessage(ctx, deliveries)
+			return nil
 		}
 	})
-	r.pool.Go(ctx, r.listen)
-	r.pool.Wait()
-	return err
+	p.Go(r.listen)
+	return p.Wait()
 }
 
 func (r *reader) handleMessage(ctx context.Context, deliveries <-chan amqp.Delivery) {
@@ -123,7 +119,7 @@ func (r *reader) handleMessage(ctx context.Context, deliveries <-chan amqp.Deliv
 			if !ok {
 				return
 			}
-			r.pool.Go(ctx, func(ctx context.Context) {
+			r.pool.Go(func() {
 				if err := r.autoHandle(ctx, v); err != nil {
 					logger.From(ctx).Error("", zap.Error(err))
 				}
@@ -146,13 +142,13 @@ func (r *reader) autoHandle(ctx context.Context, d amqp.Delivery) error {
 		r.MetadataPool.Put(meta)
 		return err
 	}
-	r.pool.Go(ctx, func(ctx context.Context) {
+	r.pool.Go(func() {
 		r.queuePool.Get(meta.TraceID).Write(meta)
 	})
 	return nil
 }
 
-func (r *reader) listen(ctx context.Context) {
+func (r *reader) listen(ctx context.Context) error {
 	for {
 		select {
 		case data := <-r.Queue.Read():
@@ -161,7 +157,7 @@ func (r *reader) listen(ctx context.Context) {
 			_ = r.Queue.Close()
 			results := r.Queue.ListAndClear()
 			r.handleProcess(results...)
-			return
+			return ctx.Err()
 		}
 	}
 }
