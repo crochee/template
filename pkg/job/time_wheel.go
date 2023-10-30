@@ -4,15 +4,14 @@ import (
 	"container/list"
 	"context"
 	"fmt"
-	"runtime/debug"
 	"time"
 
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"template/pkg/conc/pool"
 	"template/pkg/logger"
-	"template/pkg/routine"
 )
 
 type delayTask struct {
@@ -65,6 +64,7 @@ func NewTimeWheel(opts ...Option) SchedulerRuntime {
 		slotSum:           o.slotNum,
 		addTaskChannel:    make(chan *entry),
 		removeTaskChannel: make(chan string),
+		pool:              pool.New(),
 		nowFunc:           o.nowFunc,
 	}
 	for i := 0; i < t.slotSum; i++ {
@@ -83,27 +83,19 @@ type timeWheel struct {
 	addTaskChannel    chan *entry // 新增任务channel
 	removeTaskChannel chan string // 删除任务channel
 
-	pool    *routine.Pool
+	pool    *pool.Pool
 	nowFunc func() int64
 }
 
 func (t *timeWheel) Start(ctx context.Context) error {
-	t.pool = routine.NewPool(ctx,
-		routine.CopyContext(func(dst context.Context, src context.Context) context.Context {
-			return dst
-		}),
-		routine.Recover(func(ctx context.Context, i interface{}) {
-			logger.From(ctx).Error("recover",
-				zap.Any("error", i),
-				zap.ByteString("stack", debug.Stack()))
-		}))
+	p := t.pool.WithContext(ctx)
 	ticker := time.NewTicker(t.interval)
 	for {
 		select {
 		case <-ctx.Done():
 			ticker.Stop()
 			t.pool.Wait()
-			return ctx.Err()
+			return p.Wait()
 		case <-ticker.C:
 			t.handler(ctx)
 		case task := <-t.addTaskChannel:
@@ -257,8 +249,9 @@ func (t *timeWheel) scanAndRunTask(ctx context.Context, l *list.List) {
 			continue
 		}
 		// 任务执行
-		t.pool.Go(context.Background(), func(ctx context.Context) {
-			task.Execute(ctx)
+		t.pool.WithContext(ctx).Go(func(internalCtx context.Context) error {
+			task.Execute(internalCtx)
+			return nil
 		})
 		next := e.Next()
 		l.Remove(e)

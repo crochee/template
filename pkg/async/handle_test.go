@@ -4,9 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"template/pkg/conc/pool"
 	"testing"
-
-	"template/pkg/routine"
 )
 
 type testError struct {
@@ -57,7 +56,7 @@ func (t multiTest) Name() string {
 
 func (m *multiTest) Run(ctx context.Context, param *Param) error {
 	fmt.Println("mt", len(m.list))
-	g := routine.NewGroup(ctx)
+	g := pool.New().WithContext(ctx).WithCancelOnError()
 	for _, e := range m.list {
 		tmp := e
 		g.Go(func(ctx context.Context) error {
