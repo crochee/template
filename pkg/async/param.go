@@ -47,9 +47,17 @@ func (d *defaultParamPool) Get() *Param {
 
 func (d *defaultParamPool) Put(param *Param) {
 	param.TaskType = ""
-	for key := range param.Metadata {
-		delete(param.Metadata, key)
+	if len(param.Metadata) > 4096 {
+		param.Metadata = make(map[string]interface{})
+	} else {
+		for key := range param.Metadata {
+			delete(param.Metadata, key)
+		}
 	}
-	param.Data = param.Data[:0]
+	if cap(param.Data) > 4096 {
+		param.Data = param.Data[:0:0]
+	} else {
+		param.Data = param.Data[:0]
+	}
 	d.pool.Put(param)
 }
