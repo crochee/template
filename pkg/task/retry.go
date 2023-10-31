@@ -18,11 +18,6 @@ const (
 	defaultInterval = 60 * time.Second
 )
 
-const (
-	DCSDefaultInterval = 5 * time.Second
-	DCSDefaultTimeout  = 30 * 60 * time.Second
-)
-
 type retryOption struct {
 	attempts int
 	interval time.Duration
