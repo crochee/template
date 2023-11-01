@@ -22,6 +22,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/pressly/goose v2.7.0+incompatible
 	github.com/rabbitmq/amqp091-go v1.7.0
+	github.com/rs/cors v1.10.1
 	github.com/rs/zerolog v1.15.0
 	github.com/satori/go.uuid v1.2.0
 	github.com/sony/sonyflake v1.0.0
