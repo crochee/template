@@ -51,12 +51,15 @@ func main() {
 }
 
 func run() error {
+	writer := logger.SetWriter(viper.GetBool("log.console"), viper.GetString("log.path"))
 	ctx := logger.With(context.Background(),
 		logger.New(
 			logger.WithServerName(viper.GetString("service.name")),
 			logger.WithLevel(viper.GetString("log.level")),
-			logger.WithWriter(logger.SetWriter(viper.GetBool("log.console"), ""))),
+			logger.WithWriter(writer)),
 	)
+	// gin 设置
+	gin.DefaultWriter = writer
 	// 初始化数据库
 	dataStore, err := mysql.NewMysqlClient(ctx)
 	if err != nil {

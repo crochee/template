@@ -10,9 +10,6 @@ var (
 	HeaderSource        = textproto.CanonicalMIMEHeaderKey("X-Source")
 	HeaderAccountName   = textproto.CanonicalMIMEHeaderKey("X-Account-Name")
 	HeaderRealIP        = textproto.CanonicalMIMEHeaderKey("X-Real-IP")
-	HeaderOperatorID    = "operatorId"
-	HeaderOperatorName  = "innerLoginUserName"
-	HeaderOperatorType  = "operateUserType"
 
 	HeaderTraceID = textproto.CanonicalMIMEHeaderKey("X-Trace-ID")
 
@@ -22,6 +19,13 @@ var (
 	HeaderGWAccountID = textproto.CanonicalMIMEHeaderKey("Accountid")
 	HeaderGWUserID    = textproto.CanonicalMIMEHeaderKey("Userid")
 	HeaderGWToken     = textproto.CanonicalMIMEHeaderKey("Token")
+)
+
+const (
+	HeaderAdminID      = "X-Admin-ID"
+	HeaderOperatorID   = "operatorId"
+	HeaderOperatorName = "innerLoginUserName"
+	HeaderOperatorType = "operateUserType"
 )
 
 // X-Source请求头允许传值的列表

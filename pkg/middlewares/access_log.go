@@ -1,56 +1,73 @@
 package middlewares
 
 import (
+	"context"
+	"net/http"
 	"net/http/httputil"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
 
-	"template/pkg/logger"
 	"template/pkg/utils"
 )
 
-// Log request logx
-func Log(c *gin.Context) {
-	// Start timer
-	start := time.Now()
-	path := c.Request.URL.Path
-	raw := c.Request.URL.RawQuery
-	httpRequest, err := httputil.DumpRequest(c.Request, true)
-	if err != nil {
-		logger.From(c.Request.Context()).Error("fail to DumpRequest", zap.Error(err))
+// AccessLog request logx
+func AccessLog(from func(context.Context) interface {
+	Infof(string, ...interface{})
+	Warnf(string, ...interface{})
+	Errorf(string, ...interface{})
+}) func(c *gin.Context) {
+	return func(c *gin.Context) {
+		// Start timer
+		start := time.Now()
+		path := c.Request.URL.Path
+		raw := c.Request.URL.RawQuery
+		httpRequest, err := httputil.DumpRequest(c.Request, true)
+		if err != nil {
+			from(c.Request.Context()).Errorf("fail to DumpRequest %+v", err)
+		}
+
+		// Process request
+		c.Next()
+		// Log only when path is not being skipped
+
+		param := gin.LogFormatterParams{
+			Request: c.Request,
+			Keys:    c.Keys,
+		}
+		// Stop timer
+		param.TimeStamp = time.Now()
+		param.Latency = param.TimeStamp.Sub(start)
+
+		param.ClientIP = c.ClientIP()
+		param.Method = c.Request.Method
+		param.StatusCode = c.Writer.Status()
+		param.ErrorMessage = c.Errors.ByType(gin.ErrorTypePrivate).String()
+		param.BodySize = c.Writer.Size()
+
+		if raw != "" {
+			var buf strings.Builder
+			buf.WriteString(path)
+			buf.WriteByte('?')
+			buf.WriteString(raw)
+			path = buf.String()
+		}
+		param.Path = path
+
+		code := param.StatusCode
+		switch {
+		case code >= http.StatusOK && code < http.StatusMultipleChoices:
+			from(c.Request.Context()).Infof("%s,Request=%s", defaultLogFormatter(&param), utils.String(httpRequest))
+		case code >= http.StatusMultipleChoices && code < http.StatusBadRequest:
+			from(c.Request.Context()).Warnf("%s,Request=%s", defaultLogFormatter(&param), utils.String(httpRequest))
+		case code >= http.StatusBadRequest && code < http.StatusInternalServerError:
+			from(c.Request.Context()).Errorf("%s,Request=%s", defaultLogFormatter(&param), utils.String(httpRequest))
+		default:
+			from(c.Request.Context()).Errorf("%s,Request=%s", defaultLogFormatter(&param), utils.String(httpRequest))
+		}
 	}
-
-	// Process request
-	c.Next()
-	// Log only when path is not being skipped
-
-	param := gin.LogFormatterParams{
-		Request: c.Request,
-		Keys:    c.Keys,
-	}
-	// Stop timer
-	param.TimeStamp = time.Now()
-	param.Latency = param.TimeStamp.Sub(start)
-
-	param.ClientIP = c.ClientIP()
-	param.Method = c.Request.Method
-	param.StatusCode = c.Writer.Status()
-	param.ErrorMessage = c.Errors.ByType(gin.ErrorTypePrivate).String()
-	param.BodySize = c.Writer.Size()
-
-	if raw != "" {
-		var buf strings.Builder
-		buf.WriteString(path)
-		buf.WriteByte('?')
-		buf.WriteString(raw)
-		path = buf.String()
-	}
-	param.Path = path
-	logger.From(c.Request.Context()).Info(defaultLogFormatter(&param), zap.String("Request", utils.String(httpRequest)))
 }
 
 // defaultLogFormatter is the default log format function Logger middlewares uses.

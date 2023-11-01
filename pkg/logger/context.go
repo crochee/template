@@ -3,7 +3,7 @@ package logger
 import (
 	"context"
 
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 	"go.uber.org/zap"
 )
 
@@ -32,7 +32,7 @@ func WithContext(ctx context.Context, log *Logger) context.Context {
 func FromContext(ctx context.Context) *Logger {
 	l, ok := ctx.Value(zeroLogKey{}).(*Logger)
 	if !ok {
-		l = &Logger{Logger: log.Logger}
+		l = &Logger{Logger: zerolog.Nop()}
 	}
 	return l
 }
