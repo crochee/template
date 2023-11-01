@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"github.com/gin-gonic/gin"
+	uuid "github.com/satori/go.uuid"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -11,10 +12,18 @@ import (
 
 // SetRequestLogger 设置请求日志
 func SetZeroLogger(c *gin.Context) {
-	logContext := logger.FromContext(c.Request.Context()).With()
-	if traceID := c.GetHeader(v.HeaderTraceID); traceID != "" {
-		logContext = logContext.Str("trace_id", traceID)
+	// 请求头X-Trace-ID不能为空，为空时需要自动生成
+	traceID := c.GetHeader(v.HeaderTraceID)
+	if traceID == "" {
+		traceID = "req-" + uuid.NewV4().String()
+		c.Request.Header.Set(v.HeaderTraceID, traceID) // 请求头
 	}
+	// 设置响应头
+	if c.Writer.Header().Get(v.HeaderTraceID) == "" {
+		c.Writer.Header().Set(v.HeaderTraceID, traceID) // 响应头
+	}
+	logContext := logger.FromContext(c.Request.Context()).With().Str("trace_id", traceID)
+
 	if adminID := c.GetHeader(v.HeaderAdminID); adminID != "" {
 		logContext = logContext.Str("admin_id", adminID)
 	}
