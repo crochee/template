@@ -21,5 +21,6 @@ func SetHeaderContext(setCtx func(*gin.Context)) func(c *gin.Context) {
 			c.Writer.Header().Set(v.HeaderTraceID, traceID) // 响应头
 		}
 		setCtx(c)
+		c.Next()
 	}
 }
