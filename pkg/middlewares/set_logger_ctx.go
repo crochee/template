@@ -41,10 +41,17 @@ func SetZeroLogger(c *gin.Context) {
 
 // SetZapLogger 设置请求日志
 func SetZapLogger(c *gin.Context) {
-	var fields []zapcore.Field
-	if traceID := c.GetHeader(v.HeaderTraceID); traceID != "" {
-		fields = append(fields, zap.String("trace_id", traceID))
+	traceID := c.GetHeader(v.HeaderTraceID)
+	if traceID == "" {
+		traceID = "req-" + uuid.NewV4().String()
+		c.Request.Header.Set(v.HeaderTraceID, traceID) // 请求头
 	}
+	// 设置响应头
+	if c.Writer.Header().Get(v.HeaderTraceID) == "" {
+		c.Writer.Header().Set(v.HeaderTraceID, traceID) // 响应头
+	}
+	var fields = []zapcore.Field{zap.String("trace_id", traceID)}
+
 	if accountID := c.GetHeader(v.HeaderAccountID); accountID != "" {
 		fields = append(fields, zap.String("account_id", accountID))
 	}
@@ -54,9 +61,7 @@ func SetZapLogger(c *gin.Context) {
 	if source := c.GetHeader(v.HeaderSource); source != "" {
 		fields = append(fields, zap.String("source", source))
 	}
-	if len(fields) > 0 {
-		l := logger.From(c.Request.Context()).With(fields...)
-		c.Request = c.Request.WithContext(logger.With(c.Request.Context(), l))
-	}
+	l := logger.From(c.Request.Context()).With(fields...)
+	c.Request = c.Request.WithContext(logger.With(c.Request.Context(), l))
 	c.Next()
 }
