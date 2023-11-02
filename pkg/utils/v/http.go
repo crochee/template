@@ -26,10 +26,23 @@ const (
 	HeaderOperatorID   = "operatorId"
 	HeaderOperatorName = "innerLoginUserName"
 	HeaderOperatorType = "operateUserType"
+
+	HeaderStaff       = "staff"
+	HeaderForwardType = "forward-type"
+
+	HeaderAuthorization = "Authorization"
+	HeaderAPIFrom       = "X-API-From"
+	HeaderAccessToken   = "ACCESS_TOKEN"
+
+	// Header from caller
+	HeaderCallerID    = "X-Caller-ID"
+	HeaderCallerCode  = "X-Caller-Code"
+	HeaderCallerUser  = "X-Caller-User"
+	HeaderCallerExtra = "X-Caller-Extra"
 )
 
-// X-Source请求头允许传值的列表
 const (
+	// X-Source请求头允许传值的列表
 	HeaderXSourceValueMsp     = "msp"
 	HeaderXSourceValueCsk     = "csk"
 	HeaderXSourceValueDsk     = "dsk"
@@ -37,4 +50,9 @@ const (
 	HeaderXSourceValueCeen    = "ceen"
 	HeaderXSourceValuePaas    = "paas"
 	HeaderXSourceValueConsole = "console"
+)
+
+// Authorization Basic
+const (
+	AuthorizationBasic = "Basic"
 )
