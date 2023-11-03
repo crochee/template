@@ -24,3 +24,23 @@ func NewZeroGormWriterFrom(ctx context.Context) interface {
 } {
 	return logger.FromContext(ctx)
 }
+
+type nop struct{}
+
+func (nop) Infof(string, ...interface{}) {
+
+}
+
+func (nop) Warnf(string, ...interface{}) {
+}
+
+func (nop) Errorf(string, ...interface{}) {
+}
+
+func Nop(context.Context) interface {
+	Infof(string, ...interface{})
+	Warnf(string, ...interface{})
+	Errorf(string, ...interface{})
+} {
+	return nop{}
+}

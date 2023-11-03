@@ -20,3 +20,9 @@ const (
 	True  = "true"
 	False = "false"
 )
+
+// 云警用户允许访问站点过滤参数
+const (
+	QueryKeySites = "x_site_ids"
+	QueryValAll   = "all"
+)

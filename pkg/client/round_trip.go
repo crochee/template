@@ -2,36 +2,44 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"io"
 	"net"
 	"net/http"
 	"time"
 
-	"go.uber.org/zap"
 	"moul.io/http2curl"
 
-	"template/pkg/logger"
+	"template/pkg/logger/gormx"
 	"template/pkg/msg/server"
 )
 
 // CurlRoundTripper 使用无埋点信息的客户端
 func CurlRoundTripper() http.RoundTripper {
-	return &CurlTransporter{
+	return &customTransporter{
+		Merge: func(context.Context, string) {
+		},
+		From:         gormx.NewZapGormWriterFrom,
 		RoundTripper: http.DefaultTransport,
 	}
 }
 
 // CurlRoundTripperWithFault 使用有埋点信息的客户端
 func CurlRoundTripperWithFault() http.RoundTripper {
-	return &TransporterWithFault{
+	return &customTransporter{
+		Merge:        server.Merge,
+		From:         gormx.NewZapGormWriterFrom,
 		RoundTripper: http.DefaultTransport,
 	}
 }
 
 // CurlRoundTripperWithTls 使用无埋点信息的https客户端
 func CurlRoundTripperWithTls(tls *tls.Config) http.RoundTripper {
-	return &CurlTransporter{
+	return &customTransporter{
+		Merge: func(context.Context, string) {
+		},
+		From: gormx.NewZapGormWriterFrom,
 		RoundTripper: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
@@ -50,7 +58,9 @@ func CurlRoundTripperWithTls(tls *tls.Config) http.RoundTripper {
 
 // CurlRoundTripperWithTlsFault 使用有埋点信息的https客户端
 func CurlRoundTripperWithTlsFault(tls *tls.Config) http.RoundTripper {
-	return &TransporterWithFault{
+	return &customTransporter{
+		Merge: server.Merge,
+		From:  gormx.NewZapGormWriterFrom,
 		RoundTripper: &http.Transport{
 			Proxy: http.ProxyFromEnvironment,
 			DialContext: (&net.Dialer{
@@ -67,11 +77,17 @@ func CurlRoundTripperWithTlsFault(tls *tls.Config) http.RoundTripper {
 	}
 }
 
-type CurlTransporter struct {
+type customTransporter struct {
+	Merge func(context.Context, string)
+	From  func(context.Context) interface {
+		Infof(string, ...interface{})
+		Warnf(string, ...interface{})
+		Errorf(string, ...interface{})
+	}
 	RoundTripper http.RoundTripper
 }
 
-func (t *CurlTransporter) RoundTrip(req *http.Request) (*http.Response, error) {
+func (c *customTransporter) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
 	// 打印curl语句，便于问题分析和定位
 	curl, err := http2curl.GetCurlCommand(req)
@@ -83,50 +99,11 @@ func (t *CurlTransporter) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	defer func() {
 		contentStr := FormatContent(content)
-		logger.From(ctx).Info("call Request end", zap.String("content", contentStr))
-		server.Merge(ctx, contentStr)
-	}()
-
-	var resp *http.Response
-	if resp, err = t.RoundTripper.RoundTrip(req); err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	content.Status = resp.Status
-	if resp.StatusCode == http.StatusNoContent {
-		return resp, nil
-	}
-	var response []byte
-	if response, err = io.ReadAll(resp.Body); err != nil {
-		return nil, err
-	}
-	content.Response = string(response)
-	// Reset resp.Body so it can be use again
-	resp.Body = io.NopCloser(bytes.NewBuffer(response))
-	return resp, nil
-}
-
-type TransporterWithFault struct {
-	RoundTripper http.RoundTripper
-}
-
-func (t *TransporterWithFault) RoundTrip(req *http.Request) (*http.Response, error) {
-	ctx := req.Context()
-	// 打印curl语句，便于问题分析和定位
-	curl, err := http2curl.GetCurlCommand(req)
-	if err != nil {
-		return nil, err
-	}
-	content := &TransportContent{
-		Request: curl.String(),
-	}
-	defer func() {
-		contentStr := FormatContent(content)
-		logger.From(ctx).Info("call Request end", zap.String("content", contentStr))
-		server.Merge(ctx, contentStr)
+		c.From(ctx).Infof("call Request end content %s", contentStr)
+		c.Merge(ctx, contentStr)
 	}()
 	var resp *http.Response
-	if resp, err = t.RoundTripper.RoundTrip(req); err != nil {
+	if resp, err = c.RoundTripper.RoundTrip(req); err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
