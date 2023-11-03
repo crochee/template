@@ -38,7 +38,7 @@ func WithInterval(interval time.Duration) RetryOption {
 	}
 }
 
-func WithTimeOut(timeout time.Duration) RetryOption {
+func WithTimeout(timeout time.Duration) RetryOption {
 	return func(o *retryOption) {
 		o.timeout = timeout
 	}
