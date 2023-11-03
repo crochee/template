@@ -93,11 +93,10 @@ type QueryAreaListParam struct {
 
 func (a AreaClient) List(ctx context.Context, param *QueryAreaListParam) (*GetAreasDetailRsp, error) {
 	var result GetAreasDetailRsp
-	if err := a.To().WithRequest(client.HeaderRequest{
-		GetHeaders: func(ctx context.Context) http.Header {
-			return nil
+	if err := a.To().WithRequest(client.ModifiableRequest{
+		ModifyRequest: func(*http.Request) {
 		},
-		CoPartner: client.NewCoPartner("ak", "sk"),
+		Req: client.NewCoPartner("ak", "sk"),
 	}).
 		WithResponse(client.Parser{}).
 		Method(http.MethodGet).
