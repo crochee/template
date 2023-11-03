@@ -10,6 +10,9 @@ var (
 	HeaderSource        = textproto.CanonicalMIMEHeaderKey("X-Source")
 	HeaderAccountName   = textproto.CanonicalMIMEHeaderKey("X-Account-Name")
 	HeaderRealIP        = textproto.CanonicalMIMEHeaderKey("X-Real-IP")
+	HeaderCallFrom      = textproto.CanonicalMIMEHeaderKey("X-Call-From")
+
+	HeaderEventID = textproto.CanonicalMIMEHeaderKey("X-Event-ID")
 
 	HeaderTraceID = textproto.CanonicalMIMEHeaderKey("X-Trace-ID")
 
