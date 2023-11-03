@@ -21,6 +21,7 @@ const (
 type retryOption struct {
 	attempts int
 	interval time.Duration
+	timeout  time.Duration
 }
 
 type RetryOption func(*retryOption)
@@ -37,6 +38,12 @@ func WithInterval(interval time.Duration) RetryOption {
 	}
 }
 
+func WithTimeOut(timeout time.Duration) RetryOption {
+	return func(o *retryOption) {
+		o.timeout = timeout
+	}
+}
+
 func NotRetryError(err error) error {
 	if err == nil {
 		return nil
@@ -50,6 +57,7 @@ type retryTask struct {
 	Task
 	attempts int
 	interval time.Duration
+	timeout  time.Duration
 }
 
 // NewRetryFunc 生成一个错误重试的任务 错误重试，共30次，每两次间隔60s
@@ -74,6 +82,7 @@ func RetryTask(t Task, opts ...RetryOption) Task {
 		Task:     t,
 		attempts: o.attempts,
 		interval: o.interval,
+		timeout:  o.timeout,
 	}
 }
 
@@ -124,10 +133,14 @@ func (rt *retryTask) Commit(ctx context.Context, input interface{}, callbacks ..
 }
 
 func (rt *retryTask) newBackOff() backoff.BackOff {
+	if rt.timeout > 0 {
+		// 常量间隔时间
+		rt.attempts = int(rt.timeout / rt.interval)
+		return backoff.NewConstantBackOff(rt.interval)
+	}
 	if rt.attempts < 2 || rt.interval <= 0 {
 		return &backoff.ZeroBackOff{}
 	}
-
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = rt.interval
 
