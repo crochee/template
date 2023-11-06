@@ -16,7 +16,7 @@ import (
 )
 
 // CurlRoundTripper 使用无埋点信息的客户端
-func CurlRoundTripper() http.RoundTripper {
+func CurlRoundTripper() *customTransporter {
 	return &customTransporter{
 		Merge: func(context.Context, string) {
 		},
@@ -26,7 +26,7 @@ func CurlRoundTripper() http.RoundTripper {
 }
 
 // CurlRoundTripperWithFault 使用有埋点信息的客户端
-func CurlRoundTripperWithFault() http.RoundTripper {
+func CurlRoundTripperWithFault() *customTransporter {
 	return &customTransporter{
 		Merge:        server.Merge,
 		From:         gormx.NewZapGormWriterFrom,
@@ -35,7 +35,7 @@ func CurlRoundTripperWithFault() http.RoundTripper {
 }
 
 // CurlRoundTripperWithTls 使用无埋点信息的https客户端
-func CurlRoundTripperWithTls(tls *tls.Config) http.RoundTripper {
+func CurlRoundTripperWithTls(tls *tls.Config) *customTransporter {
 	return &customTransporter{
 		Merge: func(context.Context, string) {
 		},
@@ -57,7 +57,7 @@ func CurlRoundTripperWithTls(tls *tls.Config) http.RoundTripper {
 }
 
 // CurlRoundTripperWithTlsFault 使用有埋点信息的https客户端
-func CurlRoundTripperWithTlsFault(tls *tls.Config) http.RoundTripper {
+func CurlRoundTripperWithTlsFault(tls *tls.Config) *customTransporter {
 	return &customTransporter{
 		Merge: server.Merge,
 		From:  gormx.NewZapGormWriterFrom,
