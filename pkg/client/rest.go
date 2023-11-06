@@ -207,9 +207,17 @@ func (r *restfulClient) ParamAny(value interface{}) RESTClient {
 	if value == nil {
 		return r
 	}
-	form, err := query.Values(value)
-	if err != nil {
-		return r.addErr(err)
+	var form url.Values
+	switch v := value.(type) {
+	case url.Values:
+		form = v
+	case *url.Values:
+		form = *v
+	default:
+		var err error
+		if form, err = query.Values(value); err != nil {
+			return r.addErr(err)
+		}
 	}
 	if len(r.params) == 0 {
 		r.params = form
