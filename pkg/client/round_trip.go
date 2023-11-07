@@ -34,6 +34,15 @@ func CurlRoundTripperWithFault() *CustomTransporter {
 	}
 }
 
+// CurlRoundTripperDisableCurl 使用不打印请求信息的客户端
+func CurlRoundTripperDisableCurl() http.RoundTripper {
+	return &customTransporter{
+		Merge:        server.Merge,
+		From:         gormx.Nop,
+		RoundTripper: http.DefaultTransport,
+	}
+}
+
 // CurlRoundTripperWithTls 使用无埋点信息的https客户端
 func CurlRoundTripperWithTls(tls *tls.Config) *CustomTransporter {
 	return &CustomTransporter{
