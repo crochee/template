@@ -16,8 +16,8 @@ import (
 )
 
 // CurlRoundTripper 使用无埋点信息的客户端
-func CurlRoundTripper() *customTransporter {
-	return &customTransporter{
+func CurlRoundTripper() *CustomTransporter {
+	return &CustomTransporter{
 		Merge: func(context.Context, string) {
 		},
 		From:         gormx.NewZapGormWriterFrom,
@@ -26,8 +26,8 @@ func CurlRoundTripper() *customTransporter {
 }
 
 // CurlRoundTripperWithFault 使用有埋点信息的客户端
-func CurlRoundTripperWithFault() *customTransporter {
-	return &customTransporter{
+func CurlRoundTripperWithFault() *CustomTransporter {
+	return &CustomTransporter{
 		Merge:        server.Merge,
 		From:         gormx.NewZapGormWriterFrom,
 		RoundTripper: http.DefaultTransport,
@@ -35,8 +35,8 @@ func CurlRoundTripperWithFault() *customTransporter {
 }
 
 // CurlRoundTripperWithTls 使用无埋点信息的https客户端
-func CurlRoundTripperWithTls(tls *tls.Config) *customTransporter {
-	return &customTransporter{
+func CurlRoundTripperWithTls(tls *tls.Config) *CustomTransporter {
+	return &CustomTransporter{
 		Merge: func(context.Context, string) {
 		},
 		From: gormx.NewZapGormWriterFrom,
@@ -57,8 +57,8 @@ func CurlRoundTripperWithTls(tls *tls.Config) *customTransporter {
 }
 
 // CurlRoundTripperWithTlsFault 使用有埋点信息的https客户端
-func CurlRoundTripperWithTlsFault(tls *tls.Config) *customTransporter {
-	return &customTransporter{
+func CurlRoundTripperWithTlsFault(tls *tls.Config) *CustomTransporter {
+	return &CustomTransporter{
 		Merge: server.Merge,
 		From:  gormx.NewZapGormWriterFrom,
 		RoundTripper: &http.Transport{
@@ -77,7 +77,7 @@ func CurlRoundTripperWithTlsFault(tls *tls.Config) *customTransporter {
 	}
 }
 
-type customTransporter struct {
+type CustomTransporter struct {
 	Merge func(context.Context, string)
 	From  func(context.Context) interface {
 		Infof(string, ...interface{})
@@ -87,7 +87,7 @@ type customTransporter struct {
 	RoundTripper http.RoundTripper
 }
 
-func (c *customTransporter) RoundTrip(req *http.Request) (*http.Response, error) {
+func (c *CustomTransporter) RoundTrip(req *http.Request) (*http.Response, error) {
 	ctx := req.Context()
 	// 打印curl语句，便于问题分析和定位
 	curl, err := http2curl.GetCurlCommand(req)
