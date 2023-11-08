@@ -42,6 +42,8 @@ const (
 	HeaderCallerCode  = "X-Caller-Code"
 	HeaderCallerUser  = "X-Caller-User"
 	HeaderCallerExtra = "X-Caller-Extra"
+
+	HeaderContentType    = "Content-Type"
 )
 
 const (
