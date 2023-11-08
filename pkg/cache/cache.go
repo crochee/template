@@ -1,61 +1,69 @@
 package cache
 
 import (
+	"bytes"
 	"context"
-	"fmt"
+	"encoding/gob"
+	"errors"
 	"time"
+
+	"github.com/go-redis/redis/v8"
+	"github.com/spf13/viper"
+
+	_redis "template/pkg/redis"
 )
 
-type Cache interface {
-	// Get a cached value by key.
-	Get(ctx context.Context, key string) (interface{}, error)
-	// GetMulti is a batch version of Get.
-	GetMulti(ctx context.Context, keys []string) ([]interface{}, error)
-	// Set a cached value with key and expire time.
-	Put(ctx context.Context, key string, val interface{}, timeout time.Duration) error
-	// Delete cached value by key.
-	Delete(ctx context.Context, key string) error
-	// Increment a cached int value by key, as a counter.
-	Incr(ctx context.Context, key string) error
-	// Decrement a cached int value by key, as a counter.
-	Decr(ctx context.Context, key string) error
-	// Check if a cached value exists or not.
-	IsExist(ctx context.Context, key string) (bool, error)
-	// Clear all cache.
-	ClearAll(ctx context.Context) error
-	// Start gc routine based on config string settings.
-	StartAndGC(config string) error
+func DefaultCache() CacheInterface {
+	store, err := _redis.New(context.Background(), func(option *_redis.Option) {
+		option.AddrList = viper.GetStringSlice("redis.addrs")
+		option.Password = viper.GetString("redis.password")
+	})
+	if err != nil {
+		panic(err)
+	}
+	return &Cache{Store: store}
 }
 
-// Instance is a function create a new Cache Instance
-type Instance func() Cache
-
-var adapters = make(map[string]Instance)
-
-// Register makes a cache adapter available by the adapter name.
-// If Register is called twice with the same name or if driver is nil,
-// it panics.
-func Register(name string, adapter Instance) {
-	if adapter == nil {
-		panic("cache: Register adapter is nil")
-	}
-	if _, ok := adapters[name]; ok {
-		panic("cache: Register called twice for adapter " + name)
-	}
-	adapters[name] = adapter
+type Cache struct {
+	Store *redis.ClusterClient
 }
 
-// NewCache creates a new cache driver by adapter name and config string.
-// config: must be in JSON format such as {"interval":360}.
-// Starts gc automatically.
-func NewCache(adapterName, config string) (Cache, error) {
-	instanceFunc, ok := adapters[adapterName]
-	if !ok {
-		return nil, fmt.Errorf("cache: unknown adapter name %s (forgot to import?)", adapterName)
-	}
-	adapter := instanceFunc()
-	if err := adapter.StartAndGC(config); err != nil {
+func (c *Cache) Get(ctx context.Context, key string) (*Value, error) {
+	data, err := c.Store.Get(ctx, key).Bytes()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return nil, ErrNil
+		}
 		return nil, err
 	}
-	return adapter, nil
+	var value Value
+	dec := gob.NewDecoder(bytes.NewBuffer(data))
+	if err = dec.Decode(&value); err != nil {
+		return nil, err
+	}
+	return &value, nil
+}
+
+func (c *Cache) Set(ctx context.Context, key string, value *Value, expiration time.Duration) error {
+	var b bytes.Buffer
+	enc := gob.NewEncoder(&b)
+	if err := enc.Encode(*value); err != nil {
+		return err
+	}
+	return c.Store.Set(ctx, key, b.String(), expiration).Err()
+}
+
+func (c *Cache) TTL(ctx context.Context, key string) (time.Duration, error) {
+	expiration, err := c.Store.TTL(ctx, key).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return 0, ErrNil
+		}
+		return 0, err
+	}
+	return expiration, nil
+}
+
+func (c *Cache) Del(ctx context.Context, key string) error {
+	return c.Store.Del(ctx, key).Err()
 }

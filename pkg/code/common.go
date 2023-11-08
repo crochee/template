@@ -7,28 +7,30 @@ import (
 var (
 	// 00~99为服务级别错误码
 
-	ErrInternalServerError = Froze("COMMON.5000000001", "服务器内部错误")
-	ErrInvalidParam        = Froze("COMMON.4000000002", "请求参数不正确")
-	ErrNotFound            = Froze("COMMON.4040000003", "资源不存在")
-	ErrNotAllowMethod      = Froze("COMMON.4050000004", "不允许此方法")
-	ErrParseContent        = Froze("COMMON.5000000005", "解析内容失败")
-	ErrForbidden           = Froze("COMMON.4030000006", "不允许访问")
-	ErrUnauthorized        = Froze("COMMON.4010000007", "用户未认证")
-	ErrCodeUnknown         = Froze("COMMON.5000000008", "未知错误")
+	ErrInternalServerError  = Froze("COMMON.5000000001", "服务器内部错误")
+	ErrInvalidParam         = Froze("COMMON.4000000002", "请求参数不正确")
+	ErrNotFound             = Froze("COMMON.4040000003", "资源不存在")
+	ErrNotAllowMethod       = Froze("COMMON.4050000004", "不允许此方法")
+	ErrParseContent         = Froze("COMMON.5000000005", "解析内容失败")
+	ErrForbidden            = Froze("COMMON.4030000006", "不允许访问")
+	ErrUnauthorized         = Froze("COMMON.4010000007", "用户未认证")
+	ErrCodeUnknown          = Froze("COMMON.5000000008", "未知错误")
+	ErrCodeRedisCacheOption = Froze("COMMON.5000000009", "Redis缓存操作失败")
 )
 
 // AddCode business code to codeMessageBox
 func AddCode(m map[ErrorCode]struct{}) error {
 	temp := make(map[string]struct{})
 	for errorCode := range map[ErrorCode]struct{}{
-		ErrInternalServerError: {},
-		ErrInvalidParam:        {},
-		ErrNotFound:            {},
-		ErrNotAllowMethod:      {},
-		ErrParseContent:        {},
-		ErrForbidden:           {},
-		ErrUnauthorized:        {},
-		ErrCodeUnknown:         {},
+		ErrInternalServerError:  {},
+		ErrInvalidParam:         {},
+		ErrNotFound:             {},
+		ErrNotAllowMethod:       {},
+		ErrParseContent:         {},
+		ErrForbidden:            {},
+		ErrUnauthorized:         {},
+		ErrCodeUnknown:          {},
+		ErrCodeRedisCacheOption: {},
 	} {
 		if err := check(errorCode); err != nil {
 			return err
