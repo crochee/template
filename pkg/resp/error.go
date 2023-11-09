@@ -1,6 +1,7 @@
 package resp
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/gin-gonic/gin"
@@ -43,8 +44,17 @@ func Error(c *gin.Context, err error) {
 		}
 		err = u.Unwrap()
 	}
-	e, ok := err.(code.ErrorCode)
-	if !ok {
+	if err == nil {
+		c.AbortWithStatusJSON(code.ErrInternalServerError.StatusCode(), code.ErrInternalServerError)
+		return
+	}
+	sc, scok := err.(interface {
+		StatusCode() int
+		Code() string
+		Message() string
+		Result() interface{}
+	})
+	if !scok {
 		c.AbortWithStatusJSON(code.ErrCodeUnknown.StatusCode(), &Response{
 			Code:    fmt.Sprintf("%s.%3d%s", code.ErrCodeUnknown.ServiceName(), code.ErrCodeUnknown.StatusCode(), code.ErrCodeUnknown.Code()),
 			Message: code.ErrCodeUnknown.Message(),
@@ -52,10 +62,26 @@ func Error(c *gin.Context, err error) {
 		})
 		return
 	}
-	c.AbortWithStatusJSON(e.StatusCode(), &Response{
-		Code:    fmt.Sprintf("%s.%3d%s", e.ServiceName(), e.StatusCode(), e.Code()),
-		Message: e.Message(),
-		Result:  e.Result(),
+	jm, jmok := err.(json.Marshaler)
+	if jmok {
+		c.AbortWithStatusJSON(sc.StatusCode(), jm)
+		return
+	}
+	sn, snok := err.(interface {
+		ServiceName() string
+	})
+	if !snok {
+		c.AbortWithStatusJSON(sc.StatusCode(), &Response{
+			Code:    sc.Code(),
+			Message: sc.Message(),
+			Result:  sc.Result(),
+		})
+		return
+	}
+	c.AbortWithStatusJSON(sc.StatusCode(), &Response{
+		Code:    fmt.Sprintf("%s.%3d%s", sn.ServiceName(), sc.StatusCode(), sc.Code()),
+		Message: sc.Message(),
+		Result:  sc.Result(),
 	})
 }
 
