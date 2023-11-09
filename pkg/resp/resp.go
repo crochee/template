@@ -71,6 +71,7 @@ func SuccessWithFile(c *gin.Context, data ...interface{}) {
 		opts = append(opts, ptf.SetHandler(xlsx.XlsxHandler), ptf.Sheet(file.Name()))
 		r = xlsx.NewXslxRender(file, c.Request)
 	default:
+		opts = append(opts, ptf.SetHandler(csv.CsvHandler))
 		r = csv.NewCsvRender(file, c.Request)
 	}
 	err := ptf.NewMarshal(opts...).Encode(data[0])
