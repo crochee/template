@@ -10,18 +10,11 @@ import (
 	"template/pkg/utils/v"
 )
 
-type Time struct {
-	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;not null;comment:创建时间"`
-	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;not null;comment:更新时间"`
-	DeletedAt DeletedAt `json:"-" gorm:"column:deleted_at;index;comment:删除时间"`
-}
-
-type Base struct {
+type SnowID struct {
 	ID uint64 `json:"id,string" gorm:"primary_key:id"`
-	Time
 }
 
-func (b *Base) BeforeCreate(db *gorm.DB) error {
+func (b *SnowID) BeforeCreate(db *gorm.DB) error {
 	if b.ID == 0 {
 		snowID, err := idx.NextID()
 		if err != nil {
@@ -30,6 +23,21 @@ func (b *Base) BeforeCreate(db *gorm.DB) error {
 		b.ID = snowID
 	}
 	return nil
+}
+
+type Time struct {
+	CreatedAt time.Time `json:"created_at" gorm:"column:created_at;not null;comment:创建时间"`
+	UpdatedAt time.Time `json:"updated_at" gorm:"column:updated_at;not null;comment:更新时间"`
+	DeletedAt DeletedAt `json:"-" gorm:"column:deleted_at;index;comment:删除时间"`
+}
+
+type Base struct {
+	SnowID
+	Time
+}
+
+func (b *Base) BeforeCreate(db *gorm.DB) error {
+	return b.SnowID.BeforeCreate(db)
 }
 
 func (b *Base) PK() string {
