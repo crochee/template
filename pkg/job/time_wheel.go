@@ -4,6 +4,7 @@ import (
 	"container/list"
 	"context"
 	"fmt"
+	"sync/atomic"
 	"time"
 
 	cmap "github.com/orcaman/concurrent-map"
@@ -85,9 +86,14 @@ type timeWheel struct {
 
 	pool    *pool.Pool
 	nowFunc func() int64
+
+	running uint32
 }
 
 func (t *timeWheel) Start(ctx context.Context) error {
+	if !atomic.CompareAndSwapUint32(&t.running, 0, 1) {
+		return nil
+	}
 	p := t.pool.WithContext(ctx)
 	ticker := time.NewTicker(t.interval)
 	for {
@@ -131,7 +137,7 @@ func (t *timeWheel) ScheduleJob(ctx context.Context, job Job, trigger Trigger) e
 	if err != nil {
 		return err
 	}
-	if t.pool == nil {
+	if atomic.LoadUint32(&t.running) == 0 {
 		// 当系统为未运行，则直接将任务添加
 		t.addTask(task)
 		return nil
@@ -180,7 +186,7 @@ func (t *timeWheel) GetScheduledJob(key string) (*ScheduledJob, error) {
 }
 
 func (t *timeWheel) DeleteJob(ctx context.Context, key string) error {
-	if t.pool == nil {
+	if atomic.LoadUint32(&t.running) == 0 {
 		t.removeJob(key)
 		return nil
 	}
