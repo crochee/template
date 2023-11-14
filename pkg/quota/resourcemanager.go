@@ -9,10 +9,10 @@ import (
 	"github.com/spf13/viper"
 
 	"template/pkg/cache"
+	"template/pkg/conc/pool"
 	"template/pkg/env"
 	"template/pkg/logger"
 	"template/pkg/redis"
-	"template/pkg/stack"
 )
 
 // Redis状态
@@ -75,8 +75,8 @@ func InitResourceQuotaData(ctx context.Context, accountsFn func(ctx context.Cont
 		return err
 	}
 
-	go func() {
-		defer stack.RecoverPanic(ctx, nil)
+	quotaPool := pool.New().WithContext(ctx)
+	quotaPool.Go(func(ctx context.Context) error {
 		for _, act := range accounts {
 			err := RefreshAccountUsedQuota(ctx, act, true, resources...)
 			if err != nil {
@@ -96,7 +96,8 @@ func InitResourceQuotaData(ctx context.Context, accountsFn func(ctx context.Cont
 			routineFn(ctx, task)
 		}
 		t.Stop()
-	}()
+		return nil
+	})
 	return nil
 }
 
