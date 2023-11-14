@@ -1,13 +1,13 @@
 package quota
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"strconv"
 	"time"
 
 	redis8 "github.com/go-redis/redis/v8"
-	"golang.org/x/net/context"
 
 	"template/pkg/idx"
 	"template/pkg/logger"
@@ -170,7 +170,7 @@ func RefreshAccountQuota(ctx context.Context, account string, resources ...strin
 	return nil
 }
 
-func GetAccountCacheResourceUsedQuota(ctx context.Context, account, resource string) (used int, quota int, updateTime int64, err error) {
+func GetAccountCacheResourceUsedQuota(_ context.Context, account, resource string) (used int, quota int, updateTime int64, err error) {
 	client := redis.NewRedisClient()
 	key := fmt.Sprintf(ResourceKey, account, resource)
 	uKey := fmt.Sprintf(ResourceUpdateTimeKey, account)

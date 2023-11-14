@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"template/internal/gateway/base"
 	clientx "template/pkg/client"
 )
 
@@ -28,8 +27,9 @@ type produceConf struct {
 
 func (f *produceConf) Get(ctx context.Context) (*ProduceConfig, error) {
 	var result ProduceConfig
-	if err := f.To().WithRequest(base.DCSRequest{}).
-		WithResponse(base.Parser{}).
+	if err := f.To().
+		WithRequest(clientx.ModifiableRequest{}).
+		WithResponse(clientx.Parser{}).
 		Method(http.MethodGet).
 		Prefix("v1", "produce").
 		Do(ctx, &result); err != nil {
@@ -49,8 +49,9 @@ type ProduceConfig struct {
 }
 
 func (f *produceConf) Update(ctx context.Context, cfg *ProduceConfig) error {
-	if err := f.To().WithRequest(base.DCSRequest{}).
-		WithResponse(base.Parser{}).
+	if err := f.To().
+		WithRequest(clientx.ModifiableRequest{}).
+		WithResponse(clientx.Parser{}).
 		Method(http.MethodPatch).
 		Prefix("v1", "produce").
 		Body(cfg).

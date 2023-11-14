@@ -43,7 +43,7 @@ const (
 	HeaderCallerUser  = "X-Caller-User"
 	HeaderCallerExtra = "X-Caller-Extra"
 
-	HeaderContentType    = "Content-Type"
+	HeaderContentType = "Content-Type"
 )
 
 const (

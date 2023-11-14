@@ -1,11 +1,11 @@
 package quota
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
 
-	"golang.org/x/net/context"
 	"golang.org/x/sync/singleflight"
 
 	wsserver "template/pkg/msg/server"
@@ -44,7 +44,8 @@ type redisReadLock struct {
 }
 
 func (r *redisReadLock) Lock() error {
-	r.ctx, _ = context.WithTimeout(context.Background(), r.leaseTime)
+	ctx, cancel := context.WithTimeout(r.ctx, r.leaseTime)
+	defer cancel()
 	script := `
 	local waitWrite = redis.call('get', KEYS[3]..':wait_write')
 		if waitWrite ~= false then
@@ -85,9 +86,9 @@ func (r *redisReadLock) Lock() error {
 			// 获取锁超时
 			break
 		}
-		_ = WaitUnlock(r.ctx, r.key)
+		_ = WaitUnlock(ctx, r.key)
 	}
-	wsserver.Errorf(r.ctx, errcode.ErrCodeWaitLockTimeout, "get read lock timeout,key:%s", r.key)
+	wsserver.Errorf(ctx, errcode.ErrCodeWaitLockTimeout, "get read lock timeout,key:%s", r.key)
 	return errcode.ErrCodeWaitLockTimeout
 }
 
@@ -151,7 +152,8 @@ type redisWriteLock struct {
 }
 
 func (r redisWriteLock) Lock() error {
-	r.ctx, _ = context.WithTimeout(context.Background(), r.leaseTime)
+	ctx, cancel := context.WithTimeout(r.ctx, r.leaseTime)
+	defer cancel()
 	script := `
 		local mode = redis.call('hget', KEYS[1], 'mode')
 		if (mode == false) then
@@ -195,9 +197,9 @@ func (r redisWriteLock) Lock() error {
 			// 获取锁超时
 			break
 		}
-		_ = WaitUnlock(r.ctx, r.key)
+		_ = WaitUnlock(ctx, r.key)
 	}
-	wsserver.Errorf(r.ctx, errcode.ErrCodeWaitLockTimeout, "get write lock timeout,key:%s", r.key)
+	wsserver.Errorf(ctx, errcode.ErrCodeWaitLockTimeout, "get write lock timeout,key:%s", r.key)
 	return errcode.ErrCodeWaitLockTimeout
 }
 
@@ -254,7 +256,7 @@ func WaitUnlock(ctx context.Context, key string) error {
 	return nil
 }
 
-func ExitLock(ctx context.Context, key string) (string, error) {
+func ExitLock(_ context.Context, key string) (string, error) {
 	client := redis.NewRedisClient()
 	lockMode, err := client.HGet(key, "mode")
 	if err != nil {

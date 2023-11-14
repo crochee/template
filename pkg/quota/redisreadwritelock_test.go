@@ -1,13 +1,13 @@
 package quota
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/spf13/viper"
-	"golang.org/x/net/context"
 )
 
 func initRedis() {

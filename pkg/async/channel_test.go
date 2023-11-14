@@ -90,7 +90,7 @@ func TestInteract(t *testing.T) {
 	tp := NewTaskProducer()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	tc := NewTaskConsumer(ctx)
+	tc := NewTaskConsumer()
 	tc.Register(test{})
 	tc.Register(&multiTest{list: []TaskHandler{test{}, &test1{}}})
 	if err := tp.Publish(ctx, c, "", "", &Param{
@@ -180,7 +180,7 @@ func TestConsume(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	tc := NewTaskConsumer(context.Background())
+	tc := NewTaskConsumer()
 	tc.Register(testError{})
 	tc.Register(&test1{})
 	tc.Register(&multiTest{list: []TaskHandler{test{}, &test1{}}})
