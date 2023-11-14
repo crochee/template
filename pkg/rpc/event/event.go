@@ -194,10 +194,18 @@ var (
 // if action success, the event id will be returned, otherwise,
 // an error will be returned to nitify the action is failed.
 // `linkedRes` is a two tuple, the element is [linkedResID(uint64), linkedResName(string)]
-func CreateEvent(ctx context.Context, action, resType, resID, resName string, params interface{}, linkedRes ...interface{}) (uint64, error) {
-	tmpID, err := utils.ToUint64(resID)
-	if err != nil {
-		return 0, err
+func CreateEvent(ctx context.Context, action, resType string, resID interface{}, resName string, params interface{}, linkedRes ...interface{}) (uint64, error) {
+	var tmpID uint64
+	switch value := resID.(type) {
+	case uint64:
+		tmpID = value
+	case string:
+		var err error
+		if tmpID, err = utils.ToUint64(value); err != nil {
+			return 0, err
+		}
+	default:
+		return 0, fmt.Errorf("invalid res id:%v", resID)
 	}
 	if eventID := getEventID(ctx); eventID != 0 {
 		return eventID, nil
@@ -231,10 +239,18 @@ func CreateEvent(ctx context.Context, action, resType, resID, resName string, pa
 }
 
 // CreateEventContext 新建一个 event ,并将event id 添加到 ctx中返回
-func CreateEventContext(ctx context.Context, action, resType string, resID string, resName string, params interface{}, linkedRes ...interface{}) (context.Context, uint64, error) {
-	tmpID, err := utils.ToUint64(resID)
-	if err != nil {
-		return ctx, 0, err
+func CreateEventContext(ctx context.Context, action, resType string, resID interface{}, resName string, params interface{}, linkedRes ...interface{}) (context.Context, uint64, error) {
+	var tmpID uint64
+	switch value := resID.(type) {
+	case uint64:
+		tmpID = value
+	case string:
+		var err error
+		if tmpID, err = utils.ToUint64(value); err != nil {
+			return ctx, 0, err
+		}
+	default:
+		return ctx, 0, fmt.Errorf("invalid res id:%v", resID)
 	}
 	msg := createEventBody{
 		Action:  action,
@@ -327,10 +343,18 @@ func SetEventTaskID(ctx context.Context, id, taskID uint64) error {
 }
 
 // SetEventResID will add res id to the dcs event.
-func SetEventResID(ctx context.Context, id uint64, resID string) error {
-	tmpID, err := utils.ToUint64(resID)
-	if err != nil {
-		return err
+func SetEventResID(ctx context.Context, id uint64, resID interface{}) error {
+	var tmpID uint64
+	switch value := resID.(type) {
+	case uint64:
+		tmpID = value
+	case string:
+		var err error
+		if tmpID, err = utils.ToUint64(value); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("invalid res id:%v", resID)
 	}
 	attrs := updateEventBody{
 		ResID: tmpID,
