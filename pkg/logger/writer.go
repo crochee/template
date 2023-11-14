@@ -72,12 +72,12 @@ func SetWriter(console bool, path string, opts ...WriterOption) io.Writer {
 	}
 
 	var writers []io.Writer
-	path = filepath.Clean(path)
 
 	if console {
 		writers = append(writers, colorable.NewColorableStdout())
 	}
 	if path != "" {
+		path = filepath.Clean(path)
 		loggerWriter := loggerWriterManagers.GetLogger(path, o.maxSize, o.maxAge, o.maxBackups, o.localTime, o.compress)
 		writers = append(writers, loggerWriter)
 	}
