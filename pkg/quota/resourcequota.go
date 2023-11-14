@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"template/pkg/ctxw"
 	"template/pkg/env"
 	"template/pkg/idx"
 	"template/pkg/logger"
@@ -41,6 +40,7 @@ func CreateDefaultFinishQuota() FinishQuota {
 }
 
 type RedisResourceQuota struct {
+	newContext        func(context.Context) context.Context
 	account           string          // 预占账户
 	requirement       map[string]uint // 需要预占的资源类型和数量
 	isOccupy          bool            // 是否已占用
@@ -189,15 +189,12 @@ func (r *RedisResourceQuota) operatePrepareOccupying(ctx context.Context, keys, 
 }
 
 func (r *RedisResourceQuota) Finally(ctx context.Context) error {
-	//ctx, span := trace.StartSpan(ctx, "Finally RedisResourceQuota")
-	//defer span.End()
-
 	// 如果配额功能没有开启，则不执行配额预占
 	if enable, err := IsQuotaEnable(r.account); err != nil || !enable {
 		return err
 	}
 
-	ctx = ctxw.NewContext(ctx)
+	ctx = r.newContext(ctx)
 
 	// redis 需要释放 读锁
 	rlock := CreateReadLock(ctx, fmt.Sprintf(LockKey, r.account), r.userId, LockLeaseTime)
@@ -206,9 +203,6 @@ func (r *RedisResourceQuota) Finally(ctx context.Context) error {
 
 // Rollback 回滚配额
 func (r *RedisResourceQuota) Rollback(ctx context.Context) error {
-	//ctx, span := trace.StartSpan(ctx, "Rollback RedisResourceQuota")
-	//defer span.End()
-
 	// 如果配额功能没有开启，则不执行配额预占
 	if enable, err := IsQuotaEnable(r.account); err != nil || !enable {
 		if !env.IsPrivate() {
@@ -217,7 +211,7 @@ func (r *RedisResourceQuota) Rollback(ctx context.Context) error {
 		return err
 	}
 
-	ctx = ctxw.NewContext(ctx)
+	ctx = r.newContext(ctx)
 
 	defer func() {
 		if err := recover(); err != nil {

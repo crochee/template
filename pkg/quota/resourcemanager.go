@@ -1,15 +1,14 @@
 package quota
 
 import (
+	"context"
 	"sync/atomic"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
 	"github.com/spf13/viper"
-	"golang.org/x/net/context"
 
 	"template/pkg/cache"
-	"template/pkg/ctxw"
 	"template/pkg/env"
 	"template/pkg/logger"
 	"template/pkg/redis"
@@ -41,7 +40,8 @@ func WithUsedQuotaHandler(resource string, handler UsedQuotaHandler) option {
 // interval 查询Redis 状态的间隔时间，
 // expireTime 资源使用量配额数据在Redis的过期时间，
 // option 注册的资源使用量配额查询器
-func InitResourceQuotaManager(interval time.Duration, expireTime time.Duration, o ...option) {
+func InitResourceQuotaManager(interval time.Duration, expireTime time.Duration,
+	newContext func(context.Context) context.Context, o ...option) {
 	// 如果配额功能未开启，则不初始化
 	if enable, _ := IsQuotaEnable(); !enable {
 		return
@@ -51,6 +51,7 @@ func InitResourceQuotaManager(interval time.Duration, expireTime time.Duration, 
 		interval = time.Second * 3
 	}
 	ResourceQuota = ResourceQuotaManager{
+		newContext:    newContext,
 		checkInterval: interval.Milliseconds(),
 	}
 
@@ -62,7 +63,8 @@ func InitResourceQuotaManager(interval time.Duration, expireTime time.Duration, 
 // InitResourceQuotaData 刷新指定用户的 配额使用量数据
 // account 需要初始化数据到 redis上的 account
 func InitResourceQuotaData(ctx context.Context, accountsFn func(ctx context.Context) ([]string, error),
-	routineFn func(inputCtx context.Context, receiver interface{ Execute(context.Context) })) error {
+	routineFn func(inputCtx context.Context, receiver interface{ Execute(context.Context) }),
+	setTraceID func(ctx context.Context, traceID string) context.Context) error {
 	resources := make([]string, 0, len(handlerMap))
 	for resource := range handlerMap {
 		resources = append(resources, resource)
@@ -90,7 +92,7 @@ func InitResourceQuotaData(ctx context.Context, accountsFn func(ctx context.Cont
 		t := time.NewTicker(time.Duration(interval) * time.Hour)
 		task := CheckUsedQuota{accountsFn: accountsFn}
 		for range t.C {
-			ctx = ctxw.SetTraceID(ctx, "req-"+uuid.NewV4().String())
+			ctx = setTraceID(ctx, "req-"+uuid.NewV4().String())
 			routineFn(ctx, task)
 		}
 		t.Stop()
@@ -99,6 +101,7 @@ func InitResourceQuotaData(ctx context.Context, accountsFn func(ctx context.Cont
 }
 
 type ResourceQuotaManager struct {
+	newContext     func(context.Context) context.Context
 	redisStatus    int32
 	frontCheckTime int64
 	checkInterval  int64
@@ -116,7 +119,9 @@ func PrepareOccupying(ctx context.Context, account string, requirement map[strin
 
 // GetPrepareOccupyingQuota 根据 Redis 的状态，选择 是用 Redis 还是 Mysql 预占
 func (r *ResourceQuotaManager) GetPrepareOccupyingQuota(ctx context.Context) PrepareOccupyingQuota {
-	return &RedisResourceQuota{}
+	return &RedisResourceQuota{
+		newContext: r.newContext,
+	}
 }
 
 // Rollback 单独的 错误结束回调操作的功能，适用于  异步操作后资源创建失败，回滚配额

@@ -29,6 +29,9 @@ func initRedisAndHander(ctx context.Context) {
 	initRedis()
 	viper.SetDefault("user_quota.enable", "true")
 	InitResourceQuotaManager(time.Second, time.Minute*3,
+		func(ctx context.Context) context.Context {
+			return ctx
+		},
 		WithUsedQuotaHandler("CPUA", &mockHandler{Used: 10, Quota: 20}),
 		WithUsedQuotaHandler("CPUB", &mockHandler{Used: 0, Quota: 20}),
 		WithUsedQuotaHandler("CPUC", &mockHandler{Used: 18, Quota: 20}),
