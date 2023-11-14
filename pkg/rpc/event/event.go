@@ -40,10 +40,12 @@ const (
 func SetClient(c *rpc.RpcClient,
 	getEventIDFunc func(context.Context) uint64,
 	setEventIDFunc func(context.Context, uint64) context.Context) {
-	rpc.Client = c
+	client = c
 	getEventID = getEventIDFunc
 	setEventID = setEventIDFunc
 }
+
+var client *rpc.RpcClient
 
 func send(ctx context.Context, actionName string, msgBody interface{}) error {
 	exchange := viper.GetString("rabbitmq.producer.dcs_event.exchange")
@@ -65,7 +67,7 @@ func send(ctx context.Context, actionName string, msgBody interface{}) error {
 		WithBody(replace.PwdReplacerReplaceStr(string(body)))
 	req.WriteHeader(HeaderActionName, actionName)
 
-	return rpc.Client.Cast(ctx, req)
+	return client.Cast(ctx, req)
 }
 
 type createEventBody struct {
