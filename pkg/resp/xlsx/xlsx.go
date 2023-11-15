@@ -26,14 +26,14 @@ type xlsxResponse struct {
 
 func (c *xlsxResponse) Render(writer http.ResponseWriter) error {
 	fileName := url.QueryEscape(fmt.Sprintf("%s%d.xls", c.file.Name(), time.Now().Second()))
+	writer.Header().Set("Content-Type", "application/vnd.ms-excel; charset=utf-8")
+	writer.Header().Set("X-Content-Type-Options", "nosniff")
 	writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
 	http.ServeContent(writer, c.request, fileName, c.file.Info().ModTime(), c.file)
 	return nil
 }
 
 func (c *xlsxResponse) WriteContentType(w http.ResponseWriter) {
-	w.Header().Set("X-Content-Type-Options", "nosniff")
-	w.Header().Set("Content-Type", "application/vnd.ms-excel; charset=utf-8")
 }
 
 func index2Chara(i int) string {
