@@ -1,6 +1,8 @@
 package task
 
-import "context"
+import (
+	"context"
+)
 
 type Callback interface {
 	Trigger(ctx context.Context, info StoreInfo, input interface{}, err error)

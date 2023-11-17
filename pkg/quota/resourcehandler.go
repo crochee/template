@@ -88,9 +88,11 @@ func (d defaultResourceHandler) QueryUsed(ctx context.Context, account string) (
 func (d defaultResourceHandler) QueryQuota(ctx context.Context, account string) (quota int, err error) {
 	return 0, nil
 }
+
 func (d defaultResourceHandler) refresh(ctx context.Context, account string) error {
 	return nil
 }
+
 func (d defaultResourceHandler) refreshQuota(ctx context.Context, account string) error {
 	return nil
 }

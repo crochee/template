@@ -1,6 +1,8 @@
 package async
 
-import "sync"
+import (
+	"sync"
+)
 
 var (
 	Pool = NewParamPool()

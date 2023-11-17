@@ -1,6 +1,8 @@
 package extension
 
-import jsoniter "github.com/json-iterator/go"
+import (
+	jsoniter "github.com/json-iterator/go"
+)
 
 func Register() {
 	RegisterWith(jsoniter.ConfigCompatibleWithStandardLibrary,

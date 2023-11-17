@@ -13,15 +13,15 @@ func RegisterAPI(router *gin.Engine) {
 	router.PATCH("/v1/produce/config", updateProduceConfig)
 }
 
-//swagger:route GET /v1/produce/config 故障定位服务-内部运维使用 SwagNullRequest
-//
 // 查询生产者配置.
 //
 // This will get producer config info.
 //
-//     Responses:
-//       200: SGetProduceConfigRes
-//       default: ResponseCode
+//	Responses:
+//	  200: SGetProduceConfigRes
+//	  default: ResponseCode
+//
+//swagger:route GET /v1/produce/config 故障定位服务-内部运维使用 SwagNullRequest
 func getProduceConfig(c *gin.Context) {
 	ctx := c.Request.Context()
 	result, err := GetProduce(ctx)
@@ -33,15 +33,15 @@ func getProduceConfig(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-//swagger:route PATCH /v1/produce/config 故障定位服务-内部运维使用 SUpdateProduceConfigRequest
-//
 // 更新生产者配置.
 //
 // This will update producer config info.
 //
-//     Responses:
-//       200: ResponseCode
-//       default: ResponseCode
+//	Responses:
+//	  200: ResponseCode
+//	  default: ResponseCode
+//
+//swagger:route PATCH /v1/produce/config 故障定位服务-内部运维使用 SUpdateProduceConfigRequest
 func updateProduceConfig(c *gin.Context) {
 	ctx := c.Request.Context()
 	param := ProduceConfig{}

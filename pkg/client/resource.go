@@ -1,6 +1,8 @@
 package client
 
-import "net/http"
+import (
+	"net/http"
+)
 
 type IRequest interface {
 	AddEndpoint(endpoint string) IRequest

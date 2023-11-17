@@ -309,28 +309,45 @@ func (enc *jsonEncoder) AppendUint64(val uint64) {
 	enc.buf.AppendByte(' ')
 }
 
-func (enc *jsonEncoder) AddInt(k string, v int)         { enc.AddInt64(k, int64(v)) }
-func (enc *jsonEncoder) AddInt32(k string, v int32)     { enc.AddInt64(k, int64(v)) }
-func (enc *jsonEncoder) AddInt16(k string, v int16)     { enc.AddInt64(k, int64(v)) }
-func (enc *jsonEncoder) AddInt8(k string, v int8)       { enc.AddInt64(k, int64(v)) }
-func (enc *jsonEncoder) AddUint(k string, v uint)       { enc.AddUint64(k, uint64(v)) }
-func (enc *jsonEncoder) AddUint32(k string, v uint32)   { enc.AddUint64(k, uint64(v)) }
-func (enc *jsonEncoder) AddUint16(k string, v uint16)   { enc.AddUint64(k, uint64(v)) }
-func (enc *jsonEncoder) AddUint8(k string, v uint8)     { enc.AddUint64(k, uint64(v)) }
+func (enc *jsonEncoder) AddInt(k string, v int) { enc.AddInt64(k, int64(v)) }
+
+func (enc *jsonEncoder) AddInt32(k string, v int32) { enc.AddInt64(k, int64(v)) }
+
+func (enc *jsonEncoder) AddInt16(k string, v int16) { enc.AddInt64(k, int64(v)) }
+
+func (enc *jsonEncoder) AddInt8(k string, v int8) { enc.AddInt64(k, int64(v)) }
+
+func (enc *jsonEncoder) AddUint(k string, v uint) { enc.AddUint64(k, uint64(v)) }
+
+func (enc *jsonEncoder) AddUint32(k string, v uint32) { enc.AddUint64(k, uint64(v)) }
+
+func (enc *jsonEncoder) AddUint16(k string, v uint16) { enc.AddUint64(k, uint64(v)) }
+
+func (enc *jsonEncoder) AddUint8(k string, v uint8) { enc.AddUint64(k, uint64(v)) }
+
 func (enc *jsonEncoder) AddUintptr(k string, v uintptr) { enc.AddUint64(k, uint64(v)) }
-func (enc *jsonEncoder) AppendComplex64(v complex64)    { enc.appendComplex(complex128(v), 32) } // nolint:gomnd
-func (enc *jsonEncoder) AppendComplex128(v complex128)  { enc.appendComplex(v, 64) }             // nolint:gomnd
-func (enc *jsonEncoder) AppendFloat64(v float64)        { enc.appendFloat(v, 64) }               // nolint:gomnd
-func (enc *jsonEncoder) AppendFloat32(v float32)        { enc.appendFloat(float64(v), 32) }      // nolint:gomnd
-func (enc *jsonEncoder) AppendInt(v int)                { enc.AppendInt64(int64(v)) }
-func (enc *jsonEncoder) AppendInt32(v int32)            { enc.AppendInt64(int64(v)) }
-func (enc *jsonEncoder) AppendInt16(v int16)            { enc.AppendInt64(int64(v)) }
-func (enc *jsonEncoder) AppendInt8(v int8)              { enc.AppendInt64(int64(v)) }
-func (enc *jsonEncoder) AppendUint(v uint)              { enc.AppendUint64(uint64(v)) }
-func (enc *jsonEncoder) AppendUint32(v uint32)          { enc.AppendUint64(uint64(v)) }
-func (enc *jsonEncoder) AppendUint16(v uint16)          { enc.AppendUint64(uint64(v)) }
-func (enc *jsonEncoder) AppendUint8(v uint8)            { enc.AppendUint64(uint64(v)) }
-func (enc *jsonEncoder) AppendUintptr(v uintptr)        { enc.AppendUint64(uint64(v)) }
+
+func (enc *jsonEncoder) AppendComplex64(v complex64)   { enc.appendComplex(complex128(v), 32) } // nolint:gomnd
+func (enc *jsonEncoder) AppendComplex128(v complex128) { enc.appendComplex(v, 64) }             // nolint:gomnd
+func (enc *jsonEncoder) AppendFloat64(v float64)       { enc.appendFloat(v, 64) }               // nolint:gomnd
+func (enc *jsonEncoder) AppendFloat32(v float32)       { enc.appendFloat(float64(v), 32) }      // nolint:gomnd
+func (enc *jsonEncoder) AppendInt(v int)               { enc.AppendInt64(int64(v)) }
+
+func (enc *jsonEncoder) AppendInt32(v int32) { enc.AppendInt64(int64(v)) }
+
+func (enc *jsonEncoder) AppendInt16(v int16) { enc.AppendInt64(int64(v)) }
+
+func (enc *jsonEncoder) AppendInt8(v int8) { enc.AppendInt64(int64(v)) }
+
+func (enc *jsonEncoder) AppendUint(v uint) { enc.AppendUint64(uint64(v)) }
+
+func (enc *jsonEncoder) AppendUint32(v uint32) { enc.AppendUint64(uint64(v)) }
+
+func (enc *jsonEncoder) AppendUint16(v uint16) { enc.AppendUint64(uint64(v)) }
+
+func (enc *jsonEncoder) AppendUint8(v uint8) { enc.AppendUint64(uint64(v)) }
+
+func (enc *jsonEncoder) AppendUintptr(v uintptr) { enc.AppendUint64(uint64(v)) }
 
 func (enc *jsonEncoder) Clone() zapcore.Encoder {
 	clone := enc.clone()
