@@ -8,7 +8,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 )
 
-func RegisterChangeLog(router *gin.RouterGroup) {
+func RegisterLog(router *gin.RouterGroup) {
 	router.GET("/log", getLog)
 	router.PUT("/log", updateLog)
 }
