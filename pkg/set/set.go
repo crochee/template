@@ -1,14 +1,12 @@
 package set
 
-type exists struct{}
-
 type Set struct {
-	m map[interface{}]exists
+	m map[interface{}]struct{}
 }
 
 func (s *Set) Add(items ...interface{}) {
 	for _, item := range items {
-		s.m[item] = exists{}
+		s.m[item] = struct{}{}
 	}
 }
 
@@ -27,14 +25,14 @@ func (s *Set) Size() int {
 
 func NewSet(items ...interface{}) *Set {
 	s := &Set{}
-	s.m = make(map[interface{}]exists)
+	s.m = make(map[interface{}]struct{})
 	s.Add(items...)
 	return s
 }
 
 func IsContains(item string, items []string) bool {
 	s := &Set{}
-	s.m = make(map[interface{}]exists)
+	s.m = make(map[interface{}]struct{})
 	for _, item := range items {
 		s.Add(item)
 	}

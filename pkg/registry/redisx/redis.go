@@ -7,9 +7,8 @@ import (
 	"github.com/bsm/redislock"
 	"github.com/go-redis/redis/v8"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
-	"template/pkg/logger"
+	"template/pkg/logger/gormx"
 	"template/pkg/registry"
 )
 
@@ -27,6 +26,8 @@ type option struct {
 	eventFlow    EventFlow
 	encoder      Encoder
 	keyGenerator KeyGenerator
+
+	from func(context.Context) gormx.Logger
 }
 
 type Option func(*option)
@@ -61,19 +62,23 @@ func WithKeyGenerator(keyGenerator KeyGenerator) Option {
 	}
 }
 
+func WithLogFrom(from func(context.Context) gormx.Logger) Option {
+	return func(o *option) {
+		o.from = from
+	}
+}
+
 func NewRedisRegistry(ctx context.Context, client *redis.ClusterClient, opts ...Option) registry.Registry {
-	newCtx, cancel := context.WithCancel(
-		logger.With(context.Background(), logger.From(ctx)))
 	r := &redisRegistry{
 		client:  client,
 		subStop: make(chan struct{}),
-		ctx:     newCtx,
-		cancel:  cancel,
+		ctx:     ctx,
 		option: option{
 			expireTime:   time.Minute,
 			tickerTime:   30 * time.Second,
 			encoder:      DefaultEncoder{},
 			keyGenerator: DefaultKeyGenerator{},
+			from:         gormx.Nop,
 		},
 	}
 	for _, opt := range opts {
@@ -86,8 +91,7 @@ type redisRegistry struct {
 	client  *redis.ClusterClient
 	subStop chan struct{}
 
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx context.Context
 	option
 }
 
@@ -125,7 +129,6 @@ func (r *redisRegistry) Deregister(info *registry.Info) error {
 	close(r.subStop)
 	r.client.HDel(r.ctx, key, info.UUID)
 	r.client.Publish(r.ctx, key, value)
-	r.cancel()
 	return nil
 }
 
@@ -160,9 +163,7 @@ func (r *redisRegistry) keepAlive(ctx context.Context, key, uuid string) {
 		case <-ticker.C:
 			m, err := r.client.HGetAll(ctx, key).Result()
 			if err != nil {
-				logger.From(ctx).Warn("HGetAll key",
-					zap.String("key", key),
-					zap.Error(err))
+				r.from(ctx).Warnf("HGetAll key,key:%s,err:%+v", key, err)
 				return
 			}
 			for uuidStr, value := range m {
@@ -179,9 +180,7 @@ func (r *redisRegistry) compensateAndFix(ctx context.Context, key, thisUuid, uui
 	if thisUuid == uuidStr {
 		action, info, expireAt, err := r.encoder.Decode(value)
 		if err != nil {
-			logger.From(ctx).Warn("Decode value failed",
-				zap.String("value", value),
-				zap.Error(err))
+			r.from(ctx).Warnf("Decode value failed,value:%s,err:%+v", value, err)
 			return
 		}
 		var refreshData string
@@ -190,25 +189,18 @@ func (r *redisRegistry) compensateAndFix(ctx context.Context, key, thisUuid, uui
 			info,
 			time.Now().Add(r.expireTime).Unix(),
 		); err != nil {
-			logger.From(ctx).Warn("Encode to refresh failed",
-				zap.Any("info", info),
-				zap.String("action", string(action)),
-				zap.Int64("expireAt", expireAt),
-				zap.Error(err))
+			r.from(ctx).Warnf("Encode to refresh failed,info:%+v,action:%s,expireAt:%d,err:%+v",
+				info, action, expireAt, err)
 			return
 		}
 		if _, err = r.client.HSet(r.ctx, key, uuidStr, refreshData).Result(); err != nil {
-			logger.From(ctx).Warn("HSet value failed",
-				zap.String("value", refreshData),
-				zap.Error(err))
+			r.from(ctx).Warnf("HSet value failed,value:%s,err:%+v", refreshData, err)
 		}
 		return
 	}
 	action, info, expireAt, err := r.encoder.Decode(value)
 	if err != nil {
-		logger.From(ctx).Warn("Decode value failed",
-			zap.String("value", value),
-			zap.Error(err))
+		r.from(ctx).Warnf("Decode value failed,value:%s,err:%+v", value, err)
 		return
 	}
 	// 非正常断链，其他正常节点进行数据清理和通知
@@ -216,21 +208,16 @@ func (r *redisRegistry) compensateAndFix(ctx context.Context, key, thisUuid, uui
 		// 唯一执行
 		var lock *redislock.Lock
 		if lock, err = redislock.Obtain(ctx, r.client, uuidStr, time.Minute, nil); err != nil {
-			logger.From(ctx).Warn("redis get lock failed",
-				zap.Error(err), zap.String("id", uuidStr))
+			r.from(ctx).Warnf("redis get lock failed,id:%s,err:%+v", uuidStr, err)
 			return
 		}
 		defer func() {
 			if err = lock.Release(ctx); err != nil {
-				logger.From(ctx).Warn("redis Release lock failed",
-					zap.Error(err), zap.String("id", uuidStr))
+				r.from(ctx).Warnf("redis Release lock failed,id:%s,err:%+v", uuidStr, err)
 			}
 		}()
 		if _, err = r.client.HDel(r.ctx, key, uuidStr).Result(); err != nil {
-			logger.From(ctx).Warn("HSet value failed",
-				zap.String("key", key),
-				zap.String("uuid", uuidStr),
-				zap.Error(err))
+			r.from(ctx).Warnf("HSet value failed,key:%s,id:%s,err:%+v", key, uuidStr, err)
 			return
 		}
 		var data string
@@ -239,19 +226,12 @@ func (r *redisRegistry) compensateAndFix(ctx context.Context, key, thisUuid, uui
 			info,
 			expireAt,
 		); err != nil {
-			logger.From(ctx).Warn("Encode to refresh failed",
-				zap.Any("info", info),
-				zap.String("action", string(action)),
-				zap.Int64("expireAt", expireAt),
-				zap.Error(err))
+			r.from(ctx).Warnf("Encode to refresh failed,info:%+v,action:%s,expireAt:%d,err:%+v",
+				info, action, expireAt, err)
 			return
 		}
 		if _, err = r.client.Publish(r.ctx, key, data).Result(); err != nil {
-			logger.From(ctx).Warn("Publish value failed",
-				zap.String("key", key),
-				zap.String("value", data),
-				zap.Error(err))
+			r.from(ctx).Warnf("Publish value failed,key:%s,data:%s,err:%+v", key, data, err)
 		}
-
 	}
 }

@@ -26,6 +26,10 @@ func (l *Logger) Disable() {
 	zerolog.SetGlobalLevel(zerolog.Disabled)
 }
 
+func (l *Logger) Debugf(format string, args ...interface{}) {
+	l.Debug().Msgf(format, args...)
+}
+
 func (l *Logger) Infof(format string, args ...interface{}) {
 	l.Info().Msgf(format, args...)
 }

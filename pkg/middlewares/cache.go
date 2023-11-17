@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
@@ -15,7 +16,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"template/pkg/cache"
-	log "template/pkg/logger"
+	"template/pkg/logger/gormx"
 	"template/pkg/utils/v"
 )
 
@@ -56,7 +57,8 @@ func (rw *wrappedWriter) Write(body []byte) (int, error) {
 // 2.跟浏览器缓存保持一致  请求头Cache-Control取no-store和no-cache,区分不需要缓存和有缓存(默认)
 // 3.原理：根据rwapath和指定的头生成key,缓存key格式：cache:服务名:key,获取请求头Cache-Control的值
 // 走缓存(no-cache)的情况下，查询有缓存，有则返回，否则就走api获取数据并存入cache,不走缓存(no-store)的情况，直接走api，后尝试删除key
-func CacheMiddleware(clientFunc func() cache.CacheInterface, serviceName string) gin.HandlerFunc {
+func CacheMiddleware(clientFunc func() cache.CacheInterface, serviceName string,
+	from func(context.Context) gormx.Logger) gin.HandlerFunc {
 	client := clientFunc()
 	return func(c *gin.Context) {
 		if c.Request.Method != http.MethodGet {
@@ -73,7 +75,7 @@ func CacheMiddleware(clientFunc func() cache.CacheInterface, serviceName string)
 			c.Header(v.HeaderCacheControl, CacheNoStore)
 			c.Next()
 			if err := client.Del(ctx, cacheKey); err != nil {
-				log.FromContext(ctx).Err(err).Send()
+				from(ctx).Errorf("err:%+v", err)
 			}
 			return
 		}
@@ -88,7 +90,7 @@ func CacheMiddleware(clientFunc func() cache.CacheInterface, serviceName string)
 			if expires, err = client.TTL(ctx, cacheKey); err == nil {
 				c.Writer.Header().Add(v.HeaderCacheControl, fmt.Sprintf("max-age=%d", int64(expires.Seconds())))
 			} else {
-				log.FromContext(ctx).Err(err).Send()
+				from(ctx).Errorf("err:%+v", err)
 			}
 			c.Writer.WriteHeader(value.Status)
 			_, _ = c.Writer.Write(value.Body)
@@ -96,7 +98,7 @@ func CacheMiddleware(clientFunc func() cache.CacheInterface, serviceName string)
 			return
 		}
 		if !errors.Is(err, cache.ErrNil) {
-			log.FromContext(ctx).Err(err).Send()
+			from(ctx).Errorf("err:%+v", err)
 		}
 		// cache miss
 		c.Writer.Header().Add(v.HeaderCacheControl, CacheNoCache)
@@ -113,7 +115,7 @@ func CacheMiddleware(clientFunc func() cache.CacheInterface, serviceName string)
 			Body:        rw.buffer.Bytes(),
 		}, 5*time.Minute,
 		); err != nil {
-			log.FromContext(ctx).Err(err).Send()
+			from(ctx).Errorf("err:%+v", err)
 		}
 	}
 }

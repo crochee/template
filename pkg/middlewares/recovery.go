@@ -13,16 +13,13 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"template/pkg/code"
+	"template/pkg/logger/gormx"
 	"template/pkg/msg/server"
 	"template/pkg/resp"
 )
 
 // Recovery panic logx
-func Recovery(from func(context.Context) interface {
-	Infof(string, ...interface{})
-	Warnf(string, ...interface{})
-	Errorf(string, ...interface{})
-}) func(c *gin.Context) {
+func Recovery(from func(context.Context) gormx.Logger) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		defer func() {
 			if r := recover(); r != nil {

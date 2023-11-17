@@ -15,10 +15,9 @@ import (
 
 	"github.com/cenkalti/backoff/v4"
 	"go.uber.org/multierr"
-	"go.uber.org/zap"
 
 	"template/pkg/json"
-	"template/pkg/logger"
+	"template/pkg/logger/gormx"
 	"template/pkg/query"
 	"template/pkg/utils"
 )
@@ -81,6 +80,7 @@ func IsValidPathSegmentName(name string) []string {
 type restfulClient struct {
 	c Transport
 
+	From    func(context.Context) gormx.Logger
 	baseURL *url.URL
 	// generic components accessible via method setters
 	verb       string
@@ -104,7 +104,7 @@ type restfulClient struct {
 
 // NewRESTClient start to reqest
 func NewRESTClient(transport Transport, method string) RESTClient {
-	return &restfulClient{c: transport, verb: method}
+	return &restfulClient{c: transport, verb: method, From: gormx.Nop}
 }
 
 func (r *restfulClient) addErr(err error) RESTClient {
@@ -348,10 +348,10 @@ func (r *restfulClient) roundTrip(req *http.Request, operate func(*http.Request)
 	backOff := backoff.WithContext(r.newBackOff(), ctx)
 
 	notify := func(err error, d time.Duration) {
-		logger.From(ctx).Debug("New attempt", zap.Error(err), zap.Duration("interval", d), zap.Int("attempts", attempts), zap.String("url", req.URL.String()))
+		r.From(ctx).Warnf("New attempt,err %+v, interval %s, attempts %d, url %s", err, d, attempts, req.URL.String())
 	}
 	if errRetry := backoff.RetryNotify(retryOperate, backOff, notify); errRetry != nil {
-		logger.From(ctx).Debug("Final retry attempt failed", zap.Error(errRetry))
+		r.From(ctx).Warnf("final retry attempt failed, err %+v, url %s", errRetry, req.URL.String())
 	}
 	return resp, err
 }
