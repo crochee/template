@@ -1,7 +1,9 @@
 package logger
 
 import (
+	"io"
 	"os"
+	"sync/atomic"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -49,8 +51,8 @@ func NewZeroLogger(opts ...Option) *Logger {
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 	zerolog.SetGlobalLevel(l)
 	return &Logger{
-		Logger: zerolog.New(opt.writer).
-			Level(l).With().
+		Logger: zerolog.New(&dynamicLevelWriter{level: l, Writer: opt.writer}).
+			With().
 			Str("service_name", opt.serverName).
 			Timestamp().Caller().Logger(),
 	}
@@ -62,4 +64,20 @@ func newZeroLevel(level string) zerolog.Level {
 		l = zerolog.InfoLevel
 	}
 	return l
+}
+
+type dynamicLevelWriter struct {
+	level zerolog.Level
+	io.Writer
+}
+
+func (dy *dynamicLevelWriter) WriteLevel(level zerolog.Level, p []byte) (n int, err error) {
+	if atomic.LoadUint32(&debug) == 1 {
+		return dy.Write(p)
+	}
+
+	if level >= dy.level {
+		return dy.Write(p)
+	}
+	return 0, nil
 }

@@ -2,6 +2,7 @@ package logger
 
 import (
 	"os"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/zap"
@@ -24,7 +25,7 @@ func New(opts ...Option) *zap.Logger {
 	core := zapcore.NewCore(
 		o.encoder(newEncoderConfig()),
 		zap.CombineWriteSyncers(zapcore.AddSync(o.writer)),
-		newLevel(o.level),
+		NewChangeLevel(o.level),
 	).With(append(o.fields, zap.String("service_name", o.serverName))) // 自带node 信息
 	// 大于error增加堆栈信息
 	return zap.New(core).WithOptions(zap.AddCaller(), zap.AddCallerSkip(o.skip),
@@ -65,4 +66,21 @@ func (systemClock) Now() time.Time {
 
 func (systemClock) NewTicker(duration time.Duration) *time.Ticker {
 	return time.NewTicker(duration)
+}
+
+func NewChangeLevel(level string) *changeLevel {
+	return &changeLevel{
+		level: newLevel(level),
+	}
+}
+
+type changeLevel struct {
+	level zapcore.Level
+}
+
+func (ch *changeLevel) Enabled(lvl zapcore.Level) bool {
+	if atomic.LoadUint32(&debug) == 1 {
+		return true
+	}
+	return lvl >= ch.level
 }
