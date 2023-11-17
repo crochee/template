@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"template/pkg/conc/pool"
 	"testing"
+
+	"template/pkg/conc/pool"
 )
 
 type testError struct {

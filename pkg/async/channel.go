@@ -310,9 +310,11 @@ type NoopChannel struct{}
 func (NoopChannel) Publish(exchange, key string, mandatory, immediate bool, msg ...amqp.Publishing) error {
 	return nil
 }
+
 func (NoopChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWail bool, args amqp.Table) (<-chan amqp.Delivery, error) {
 	return nil, nil
 }
+
 func (NoopChannel) DeclareAndBind(exchange, kind, queue, key string, args ...map[string]interface{}) error {
 	return nil
 }

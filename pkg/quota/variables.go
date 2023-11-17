@@ -1,6 +1,8 @@
 package quota
 
-import "time"
+import (
+	"time"
+)
 
 const (
 	LockKey          = "dcs-lock-%s"

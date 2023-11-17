@@ -1,6 +1,8 @@
 package msg
 
-import "sync/atomic"
+import (
+	"sync/atomic"
+)
 
 type switchStatus struct {
 	old uint32

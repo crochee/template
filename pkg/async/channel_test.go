@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"template/pkg/json"
 	"testing"
 	"time"
 
@@ -13,6 +12,8 @@ import (
 	"github.com/golang/mock/gomock"
 	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
+
+	"template/pkg/json"
 )
 
 // mockChannel is a mock of Channel.

@@ -1,6 +1,8 @@
 package v
 
-import "net/textproto"
+import (
+	"net/textproto"
+)
 
 var (
 	HeaderAccountID     = textproto.CanonicalMIMEHeaderKey("X-Account-ID")

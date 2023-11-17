@@ -1,6 +1,8 @@
 package code
 
-import "template/pkg/code"
+import (
+	"template/pkg/code"
+)
 
 var (
 	// 000~099 系统类

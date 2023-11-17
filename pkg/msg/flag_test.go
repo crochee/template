@@ -1,7 +1,9 @@
 // Package msg
 package msg
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestName(t *testing.T) {
 	t.Log(Exit, ResetTime)

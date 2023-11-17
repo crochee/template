@@ -1,6 +1,8 @@
 package model
 
-import "template/pkg/storage"
+import (
+	"template/pkg/storage"
+)
 
 // Area 区域信息表
 type Area struct {

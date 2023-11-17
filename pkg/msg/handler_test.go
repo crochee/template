@@ -1,6 +1,8 @@
 package msg
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestCallerFunc(t *testing.T) {
 	t.Log(op())
