@@ -19,14 +19,14 @@ func TestNewSet(t *testing.T) {
 			args: args{
 				items: []interface{}{1, 2, 3, 4, 5, 6, 7, 8, 9, 10},
 			},
-			want: &Set{map[interface{}]exists{1: {}, 2: {}, 3: {}, 4: {}, 5: {}, 6: {}, 7: {}, 8: {}, 9: {}, 10: {}}},
+			want: &Set{map[interface{}]struct{}{1: {}, 2: {}, 3: {}, 4: {}, 5: {}, 6: {}, 7: {}, 8: {}, 9: {}, 10: {}}},
 		},
 		{
 			name: "NewEmptySet",
 			args: args{
 				items: []interface{}{},
 			},
-			want: &Set{map[interface{}]exists{}},
+			want: &Set{map[interface{}]struct{}{}},
 		},
 	}
 	for _, tt := range tests {
@@ -82,7 +82,7 @@ func Test_IsContains(t *testing.T) {
 
 func Test_set_Add(t *testing.T) {
 	type fields struct {
-		m map[interface{}]exists
+		m map[interface{}]struct{}
 	}
 	type args struct {
 		items []interface{}
@@ -96,40 +96,40 @@ func Test_set_Add(t *testing.T) {
 		{
 			name: "AddEmptyOneItem",
 			fields: fields{
-				m: map[interface{}]exists{}},
+				m: map[interface{}]struct{}{}},
 			args: args{
 				items: []interface{}{1},
 			},
-			want: &Set{map[interface{}]exists{1: {}}},
+			want: &Set{map[interface{}]struct{}{1: {}}},
 		},
 		{
 			name: "AddEmptyTwoItems",
 			fields: fields{
-				m: map[interface{}]exists{}},
+				m: map[interface{}]struct{}{}},
 			args: args{
 				items: []interface{}{1, 2},
 			},
-			want: &Set{map[interface{}]exists{1: {}, 2: {}}},
+			want: &Set{map[interface{}]struct{}{1: {}, 2: {}}},
 		},
 		{
 			name: "AddExistOneItem",
 			fields: fields{
-				m: map[interface{}]exists{1: {}, 2: {}},
+				m: map[interface{}]struct{}{1: {}, 2: {}},
 			},
 			args: args{
 				items: []interface{}{3},
 			},
-			want: &Set{map[interface{}]exists{1: {}, 2: {}, 3: {}}},
+			want: &Set{map[interface{}]struct{}{1: {}, 2: {}, 3: {}}},
 		},
 		{
 			name: "AddExistTwoItems",
 			fields: fields{
-				m: map[interface{}]exists{1: {}, 2: {}},
+				m: map[interface{}]struct{}{1: {}, 2: {}},
 			},
 			args: args{
 				items: []interface{}{3, 4},
 			},
-			want: &Set{map[interface{}]exists{1: {}, 2: {}, 3: {}, 4: {}}},
+			want: &Set{map[interface{}]struct{}{1: {}, 2: {}, 3: {}, 4: {}}},
 		},
 	}
 	for _, tt := range tests {
@@ -147,7 +147,7 @@ func Test_set_Add(t *testing.T) {
 
 func Test_set_Contains(t *testing.T) {
 	type fields struct {
-		m map[interface{}]exists
+		m map[interface{}]struct{}
 	}
 	type args struct {
 		item interface{}
@@ -161,7 +161,7 @@ func Test_set_Contains(t *testing.T) {
 		{
 			name: "Contains",
 			fields: fields{
-				m: map[interface{}]exists{1: {}, 2: {}, 3: {}},
+				m: map[interface{}]struct{}{1: {}, 2: {}, 3: {}},
 			},
 			args: args{
 				item: 1,
@@ -171,7 +171,7 @@ func Test_set_Contains(t *testing.T) {
 		{
 			name: "NotContains",
 			fields: fields{
-				m: map[interface{}]exists{1: {}, 2: {}, 3: {}},
+				m: map[interface{}]struct{}{1: {}, 2: {}, 3: {}},
 			},
 			args: args{
 				item: 4,
@@ -193,7 +193,7 @@ func Test_set_Contains(t *testing.T) {
 
 func Test_set_Remove(t *testing.T) {
 	type fields struct {
-		m map[interface{}]exists
+		m map[interface{}]struct{}
 	}
 	type args struct {
 		item interface{}
@@ -207,22 +207,22 @@ func Test_set_Remove(t *testing.T) {
 		{
 			name: "Remove",
 			fields: fields{
-				m: map[interface{}]exists{1: {}, 2: {}, 3: {}},
+				m: map[interface{}]struct{}{1: {}, 2: {}, 3: {}},
 			},
 			args: args{
 				item: 1,
 			},
-			want: &Set{map[interface{}]exists{2: {}, 3: {}}},
+			want: &Set{map[interface{}]struct{}{2: {}, 3: {}}},
 		},
 		{
 			name: "NotRemove",
 			fields: fields{
-				m: map[interface{}]exists{1: {}, 2: {}, 3: {}},
+				m: map[interface{}]struct{}{1: {}, 2: {}, 3: {}},
 			},
 			args: args{
 				item: 4,
 			},
-			want: &Set{map[interface{}]exists{1: {}, 2: {}, 3: {}}},
+			want: &Set{map[interface{}]struct{}{1: {}, 2: {}, 3: {}}},
 		},
 	}
 	for _, tt := range tests {
@@ -240,7 +240,7 @@ func Test_set_Remove(t *testing.T) {
 
 func Test_set_Size(t *testing.T) {
 	type fields struct {
-		m map[interface{}]exists
+		m map[interface{}]struct{}
 	}
 	tests := []struct {
 		name   string
@@ -249,13 +249,13 @@ func Test_set_Size(t *testing.T) {
 	}{
 		{
 			name:   "SizeEmpty",
-			fields: fields{m: map[interface{}]exists{}},
+			fields: fields{m: map[interface{}]struct{}{}},
 			want:   0,
 		},
 		{
 			name: "SizeNotEmpty",
 			fields: fields{
-				m: map[interface{}]exists{1: {}, 2: {}, 3: {}},
+				m: map[interface{}]struct{}{1: {}, 2: {}, 3: {}},
 			},
 			want: 3,
 		},

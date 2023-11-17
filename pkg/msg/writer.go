@@ -12,11 +12,10 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
-	"go.uber.org/zap"
 
 	"template/pkg/async"
 	"template/pkg/json"
-	"template/pkg/logger"
+	"template/pkg/logger/gormx"
 )
 
 func NewWriter(opts ...func(*WriterOption)) *Writer {
@@ -29,6 +28,7 @@ func NewWriter(opts ...func(*WriterOption)) *Writer {
 			JSONHandler:     jsoniter.ConfigCompatibleWithStandardLibrary,
 			Publisher:       async.NoopProducer{},
 			Channel:         async.NoopChannel{},
+			From:            gormx.Nop,
 		},
 	}
 
@@ -47,6 +47,7 @@ type WriterOption struct {
 	JSONHandler     jsoniter.API
 	Publisher       async.Producer
 	Channel         async.Channel
+	From            func(context.Context) gormx.Logger
 }
 
 type Writer struct {
@@ -118,7 +119,7 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 		}
 		data, err := w.JSONHandler.Marshal(tempEvents)
 		if err != nil {
-			logger.From(ctx).Error("marshal events failed", zap.Error(err))
+			w.From(ctx).Errorf("marshal events failed,%+v", err)
 			continue
 		}
 		metadata.Desc = string(data)
@@ -132,18 +133,18 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 		data, err = w.JSONHandler.Marshal(metadata)
 		w.MetadataPool.Put(metadata)
 		if err != nil {
-			logger.From(ctx).Error("Publish failed", zap.Error(err))
+			w.From(ctx).Errorf("Publish failed,%+v", err)
 			continue
 		}
 		msg, err := w.marshal.Marshal(message.NewMessage(metadata.TraceID, data))
 		if err != nil {
-			logger.From(ctx).Error("marshal failed", zap.Error(err))
+			w.From(ctx).Errorf("marshal failed,%+v", err)
 			continue
 		}
 		result = append(result, msg)
 	}
 	if err := w.GetPublisher().Publish(ctx, w.GetChannel(), w.Cfg.Exchange(), w.Cfg.RoutingKey(), result); err != nil {
-		logger.From(ctx).Error("Publish failed", zap.Error(err))
+		w.From(ctx).Errorf("Publish failed,%+v", err)
 	}
 	return nil
 }

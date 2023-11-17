@@ -7,10 +7,9 @@ import (
 	jsoniter "github.com/json-iterator/go"
 	uuid "github.com/satori/go.uuid"
 	"github.com/streadway/amqp"
-	"go.uber.org/zap"
 
 	"template/pkg/conc/pool"
-	"template/pkg/logger"
+	"template/pkg/logger/gormx"
 	"template/pkg/validator"
 )
 
@@ -33,6 +32,7 @@ func NewTaskConsumer(opts ...Option) *taskConsumer {
 		handler:   jsoniter.ConfigCompatibleWithStandardLibrary,
 		validator: validator.NewValidator(),
 		autoAck:   true,
+		form:      gormx.Nop,
 	}
 
 	for _, opt := range opts {
@@ -45,6 +45,7 @@ func NewTaskConsumer(opts ...Option) *taskConsumer {
 		handler:   o.handler,
 		validator: o.validator,
 		autoAck:   o.autoAck,
+		from:      o.form,
 	}
 }
 
@@ -55,6 +56,7 @@ type taskConsumer struct {
 	handler   jsoniter.API
 	validator validator.Validator
 	autoAck   bool
+	from      func(context.Context) gormx.Logger
 }
 
 // Register registers a TaskHandler with name
@@ -135,12 +137,12 @@ func (t *taskConsumer) handleMessage(ctx context.Context, deliveries <-chan amqp
 			p.Go(func(ctx context.Context) error {
 				if t.autoAck {
 					if err := t.autoHandle(ctx, v); err != nil {
-						logger.From(ctx).Error("", zap.Error(err))
+						t.from(ctx).Errorf("err:%+v", err)
 					}
 					return nil
 				}
 				if err := t.manualHandle(ctx, v); err != nil {
-					logger.From(ctx).Error("", zap.Error(err))
+					t.from(ctx).Errorf("err:%+v", err)
 				}
 				return nil
 			})
@@ -151,7 +153,7 @@ func (t *taskConsumer) handleMessage(ctx context.Context, deliveries <-chan amqp
 func (t *taskConsumer) manualHandle(ctx context.Context, d amqp.Delivery) error {
 	msgStruct, err := t.marshal.Unmarshal(&d)
 	if err != nil {
-		logger.From(ctx).Error("", zap.Error(err))
+		t.from(ctx).Errorf("err:%+v", err)
 		// 当requeue为true时，将该消息排队，以在另一个通道上传递给使用者。
 		// 当requeue为false或服务器无法将该消息排队时，它将被丢弃。
 		if err = d.Reject(false); err != nil {
@@ -159,14 +161,11 @@ func (t *taskConsumer) manualHandle(ctx context.Context, d amqp.Delivery) error 
 		}
 		return nil
 	}
-	logContext := logger.From(ctx)
-	logContext.Debug("get body",
-		zap.ByteString("payload", msgStruct.Payload),
-		zap.String("uuid", msgStruct.UUID),
-	)
+	logContext := t.from(ctx)
+	logContext.Debugf("get body %s,uuid:%s", msgStruct.Payload, msgStruct.UUID)
 	param := Get()
 	if err = t.handler.Unmarshal(msgStruct.Payload, param); err != nil {
-		logContext.Error("", zap.Error(err))
+		logContext.Errorf("err:%+v", err)
 		// 当requeue为true时，将该消息排队，以在另一个通道上传递给使用者。
 		// 当requeue为false或服务器无法将该消息排队时，它将被丢弃。
 		if err = d.Reject(false); err != nil {
@@ -175,7 +174,7 @@ func (t *taskConsumer) manualHandle(ctx context.Context, d amqp.Delivery) error 
 		return nil
 	}
 	if err = t.validator.ValidateStruct(param); err != nil {
-		logContext.Error("", zap.Error(err))
+		logContext.Errorf("err:%+v", err)
 		// 当requeue为true时，将该消息排队，以在另一个通道上传递给使用者。
 		// 当requeue为false或服务器无法将该消息排队时，它将被丢弃。
 		if err = d.Reject(false); err != nil {
@@ -186,7 +185,7 @@ func (t *taskConsumer) manualHandle(ctx context.Context, d amqp.Delivery) error 
 	err = t.manager.Run(ctx, param)
 	Put(param)
 	if err != nil {
-		logContext.Error("", zap.Error(err))
+		logContext.Errorf("err:%+v", err)
 		// 当requeue为true时，将该消息排队，以在另一个通道上传递给使用者。
 		// 当requeue为false或服务器无法将该消息排队时，它将被丢弃。
 		if err = d.Reject(true); err != nil {
@@ -205,10 +204,7 @@ func (t *taskConsumer) autoHandle(ctx context.Context, d amqp.Delivery) error {
 		return err
 	}
 
-	logger.From(ctx).Debug("get body",
-		zap.Any("consume body:%s", msgStruct.Payload),
-		zap.String("uuid", msgStruct.UUID),
-	)
+	t.from(ctx).Debugf("get body consume:%s,uuid:%s", msgStruct.Payload, msgStruct.UUID)
 	param := Get()
 	if err = t.handler.Unmarshal(msgStruct.Payload, param); err != nil {
 		return err

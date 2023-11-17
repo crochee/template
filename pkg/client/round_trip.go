@@ -87,12 +87,8 @@ func CurlRoundTripperWithTlsFault(tls *tls.Config) *CustomTransporter {
 }
 
 type CustomTransporter struct {
-	Merge func(context.Context, string)
-	From  func(context.Context) interface {
-		Infof(string, ...interface{})
-		Warnf(string, ...interface{})
-		Errorf(string, ...interface{})
-	}
+	Merge        func(context.Context, string)
+	From         func(context.Context) gormx.Logger
 	RoundTripper http.RoundTripper
 }
 

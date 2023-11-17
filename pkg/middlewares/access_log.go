@@ -10,15 +10,12 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"template/pkg/logger/gormx"
 	"template/pkg/utils"
 )
 
 // AccessLog request logx
-func AccessLog(from func(context.Context) interface {
-	Infof(string, ...interface{})
-	Warnf(string, ...interface{})
-	Errorf(string, ...interface{})
-}) func(c *gin.Context) {
+func AccessLog(from func(context.Context) gormx.Logger) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		// Start timer
 		start := time.Now()

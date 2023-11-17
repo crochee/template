@@ -5,6 +5,7 @@ import (
 
 	jsoniter "github.com/json-iterator/go"
 
+	"template/pkg/logger/gormx"
 	"template/pkg/validator"
 )
 
@@ -15,6 +16,7 @@ type option struct {
 	validator validator.Validator
 	autoAck   bool
 	uuid      func(ctx context.Context) string
+	form      func(ctx context.Context) gormx.Logger
 }
 
 type Option func(*option)
@@ -52,5 +54,11 @@ func WithAck(auto bool) Option {
 func WithUuid(uuid func(ctx context.Context) string) Option {
 	return func(o *option) {
 		o.uuid = uuid
+	}
+}
+
+func WithLogFrom(from func(context.Context) gormx.Logger) Option {
+	return func(o *option) {
+		o.form = from
 	}
 }

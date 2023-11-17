@@ -7,13 +7,11 @@ import (
 
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/utils"
+
+	"template/pkg/logger/gormx"
 )
 
-func NewLog(writerFrom func(context.Context) interface {
-	Infof(string, ...interface{})
-	Warnf(string, ...interface{})
-	Errorf(string, ...interface{})
-}, opts ...func(*logger.Config)) logger.Interface {
+func NewLog(writerFrom func(context.Context) gormx.Logger, opts ...func(*logger.Config)) logger.Interface {
 	cfg := logger.Config{
 		SlowThreshold:             10 * time.Second,
 		LogLevel:                  logger.Info,
@@ -57,11 +55,7 @@ func NewLog(writerFrom func(context.Context) interface {
 }
 
 type gormLog struct {
-	writerFrom func(context.Context) interface {
-		Infof(string, ...interface{})
-		Warnf(string, ...interface{})
-		Errorf(string, ...interface{})
-	}
+	writerFrom func(context.Context) gormx.Logger
 	logger.Config
 	infoStr, warnStr, errStr            string
 	traceStr, traceErrStr, traceWarnStr string
