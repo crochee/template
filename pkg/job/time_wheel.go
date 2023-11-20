@@ -94,14 +94,13 @@ func (t *timeWheel) Start(ctx context.Context) error {
 	if !atomic.CompareAndSwapUint32(&t.running, 0, 1) {
 		return nil
 	}
-	p := t.pool.WithContext(ctx)
 	ticker := time.NewTicker(t.interval)
 	for {
 		select {
 		case <-ctx.Done():
 			ticker.Stop()
 			t.pool.Wait()
-			return p.Wait()
+			return ctx.Err()
 		case <-ticker.C:
 			t.handler(ctx)
 		case task := <-t.addTaskChannel:
