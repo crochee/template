@@ -107,8 +107,15 @@ func (r *redisRegistry) Register(info *registry.Info) error {
 	if err != nil {
 		return err
 	}
-	r.client.HSet(r.ctx, key, info.UUID, value)
-	r.client.Publish(r.ctx, key, value)
+	if _, err := r.client.HSet(r.ctx, key, info.UUID, value).Result(); err != nil {
+		return err
+	}
+	if _, err := r.client.Expire(r.ctx, key, 2*r.expireTime).Result(); err != nil {
+		return err
+	}
+	if _, err := r.client.Publish(r.ctx, key, value).Result(); err != nil {
+		return err
+	}
 	go r.subscribe(r.ctx, key)
 	go r.keepAlive(r.ctx, key, info.UUID)
 	return nil
@@ -195,6 +202,15 @@ func (r *redisRegistry) compensateAndFix(ctx context.Context, key, thisUuid, uui
 		}
 		if _, err = r.client.HSet(r.ctx, key, uuidStr, refreshData).Result(); err != nil {
 			r.from(ctx).Warnf("HSet value failed,value:%s,err:%+v", refreshData, err)
+			return
+		}
+		if _, err := r.client.Expire(r.ctx, key, 2*r.expireTime).Result(); err != nil {
+			r.from(ctx).Warnf("Expire time failed,key:%s,err:%+v", key, err)
+			return
+		}
+		if _, err := r.client.Publish(r.ctx, key, refreshData).Result(); err != nil {
+			r.from(ctx).Warnf("Publish value failed,key:%s,value:%s,err:%+v", key, refreshData, err)
+			return
 		}
 		return
 	}
@@ -207,7 +223,8 @@ func (r *redisRegistry) compensateAndFix(ctx context.Context, key, thisUuid, uui
 	if time.Now().Unix() > expireAt {
 		// 唯一执行
 		var lock *redislock.Lock
-		if lock, err = redislock.Obtain(ctx, r.client, uuidStr, time.Minute, nil); err != nil {
+		if lock, err = redislock.Obtain(ctx, r.client, uuidStr, time.Minute,
+			&redislock.Options{RetryStrategy: redislock.ExponentialBackoff(5*time.Second, 15*time.Second)}); err != nil {
 			r.from(ctx).Warnf("redis get lock failed,id:%s,err:%+v", uuidStr, err)
 			return
 		}
