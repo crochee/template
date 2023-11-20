@@ -3,12 +3,10 @@ package clean
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"time"
 
 	"go.uber.org/zap"
 
-	"template/pkg/idx"
 	"template/pkg/logger"
 	"template/pkg/storage"
 )
@@ -59,11 +57,7 @@ func (d deleteDeletedJob) Description() string {
 
 // Key returns the unique key for the Job.
 func (d deleteDeletedJob) Key() string {
-	id, err := idx.NextID()
-	if err != nil {
-		return "1"
-	}
-	return strconv.FormatUint(id, 10)
+	return "clean.deleteDeletedJob"
 }
 
 // Execute is called by a SchedulerRuntime when the Trigger associated with this job fires.
