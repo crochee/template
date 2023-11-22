@@ -9,10 +9,8 @@ import (
 
 	cmap "github.com/orcaman/concurrent-map"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"template/pkg/conc/pool"
-	"template/pkg/logger"
 )
 
 type delayTask struct {
@@ -65,7 +63,6 @@ func NewTimeWheel(opts ...Option) SchedulerRuntime {
 		slotSum:           o.slotNum,
 		addTaskChannel:    make(chan *entry),
 		removeTaskChannel: make(chan string),
-		pool:              pool.New(),
 		nowFunc:           o.nowFunc,
 	}
 	for i := 0; i < t.slotSum; i++ {
@@ -84,7 +81,7 @@ type timeWheel struct {
 	addTaskChannel    chan *entry // 新增任务channel
 	removeTaskChannel chan string // 删除任务channel
 
-	pool    *pool.Pool
+	pool    *pool.ContextPool
 	nowFunc func() int64
 
 	running uint32
@@ -95,14 +92,15 @@ func (t *timeWheel) Start(ctx context.Context) error {
 		return nil
 	}
 	ticker := time.NewTicker(t.interval)
+	t.pool = pool.New().WithContext(ctx)
+
 	for {
 		select {
 		case <-ctx.Done():
 			ticker.Stop()
-			t.pool.Wait()
-			return ctx.Err()
+			return t.pool.Wait()
 		case <-ticker.C:
-			t.handler(ctx)
+			t.handler()
 		case task := <-t.addTaskChannel:
 			t.addTask(task)
 		case key := <-t.removeTaskChannel:
@@ -232,14 +230,14 @@ func (t *timeWheel) removeJob(key string) {
 	}
 }
 
-func (t *timeWheel) handler(ctx context.Context) {
+func (t *timeWheel) handler() {
 	t.cur = (t.cur + 1) % t.slotSum
 	l := t.slots[t.cur]
-	t.scanAndRunTask(ctx, l)
+	t.scanAndRunTask(l)
 }
 
 // 扫描链表中过期定时器, 并执行回调函数
-func (t *timeWheel) scanAndRunTask(ctx context.Context, l *list.List) {
+func (t *timeWheel) scanAndRunTask(l *list.List) {
 	for e := l.Front(); e != nil; {
 		task, ok := e.Value.(*entry)
 		if !ok { // 清楚脏数据
@@ -254,14 +252,14 @@ func (t *timeWheel) scanAndRunTask(ctx context.Context, l *list.List) {
 			continue
 		}
 		// 任务执行
-		t.pool.WithContext(ctx).Go(func(internalCtx context.Context) error {
-			task.Execute(internalCtx)
+		t.pool.Go(func(ctx context.Context) error {
+			task.Execute(ctx)
 			return nil
 		})
 		next := e.Next()
 		l.Remove(e)
 		// 重新调度
-		t.moveTask(ctx, task)
+		t.moveTask(task)
 		e = next
 	}
 }
@@ -286,17 +284,13 @@ func (t *timeWheel) createTask(job Job, trigger Trigger) (*entry, error) {
 	}, nil
 }
 
-func (t *timeWheel) moveTask(ctx context.Context, task *entry) {
+func (t *timeWheel) moveTask(task *entry) {
 	taskValue, err := t.createTask(task.Job, task.Trigger)
 	if err != nil {
 		t.timerMap.Remove(task.Key())
 		if errors.Is(err, ErrSkipScheduleJob) {
 			return
 		}
-		logger.From(ctx).Error("ReScheduleJob failed",
-			zap.String("Key", task.Key()),
-			zap.String("Trigger", task.Trigger.Description()),
-			zap.Error(err))
 		return
 	}
 	t.addTask(taskValue)
