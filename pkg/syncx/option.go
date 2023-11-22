@@ -1,10 +1,23 @@
 package syncx
 
 import (
+	"runtime"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
 )
+
+func goroutineNum() string {
+	buf := make([]byte, 35)
+	runtime.Stack(buf, false)
+	s := string(buf)
+	return string(strings.TrimSpace(s[10:strings.IndexByte(s, '[')]))
+}
+
+func channelName(key string) string {
+	return "redisson_lock__channel" + ":{" + key + "}"
+}
 
 type option struct {
 	client         *redis.ClusterClient

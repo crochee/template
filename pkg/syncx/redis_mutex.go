@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 	"runtime"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -67,16 +67,15 @@ func NewMutex(key string, opts ...Option) *Mutex {
 			return 0
 		end
 	end
-	redis.call('publish',KEYS[2],ARGV[2])
-	return 1
+	return redis.call('publish',KEYS[2],ARGV[2])
 `,
 		key:    key,
 		option: o,
 	}
-	m.pubSub = m.client.Subscribe(context.Background(), m.channelName())
+	m.pubSub = m.client.Subscribe(context.Background(), channelName(m.key))
 
 	runtime.SetFinalizer(m, func(m *Mutex) {
-		if err := m.pubSub.Unsubscribe(context.Background(), m.channelName()); err != nil {
+		if err := m.pubSub.Unsubscribe(context.Background(), channelName(m.key)); err != nil {
 			log.Println(err)
 		}
 		if err := m.pubSub.Close(); err != nil {
@@ -86,22 +85,17 @@ func NewMutex(key string, opts ...Option) *Mutex {
 	return m
 }
 
-func (m Mutex) goroutineNum() string {
-	buf := make([]byte, 35)
-	runtime.Stack(buf, false)
-	s := string(buf)
-	return string(strings.TrimSpace(s[10:strings.IndexByte(s, '[')]))
-}
-
-func (m Mutex) Lock() error {
+func (m *Mutex) Lock() error {
 	// 单位：ms
 	expiration := int64(m.expiration / time.Millisecond)
 
 	ctx, cancel := context.WithTimeout(context.Background(), m.waitTimeout)
 	defer cancel()
 
-	clientID := m.clientIDPrefix + ":" + m.goroutineNum()
-	err := m.tryLock(ctx, clientID, expiration)
+	clientID := m.clientIDPrefix + ":" + goroutineNum()
+	ch := make(chan result)
+	var once sync.Once
+	err := m.tryLock(ctx, &once, ch, clientID, expiration)
 	if err != nil {
 		return err
 	}
@@ -124,7 +118,7 @@ type result struct {
 	err error
 }
 
-func (m Mutex) tryLock(ctx context.Context, clientID string, expiration int64) error {
+func (m Mutex) tryLock(ctx context.Context, once *sync.Once, ch chan result, clientID string, expiration int64) error {
 	// 尝试加锁
 	pTTL, err := m.lock(clientID, expiration)
 	if err != nil {
@@ -133,27 +127,53 @@ func (m Mutex) tryLock(ctx context.Context, clientID string, expiration int64) e
 	if pTTL == 0 {
 		return nil
 	}
-	ch := make(chan result)
-	go func() {
-		msg, err := m.pubSub.ReceiveMessage(ctx)
-		ch <- result{val: msg, err: err}
-		close(ch)
-	}()
+	once.Do(func() {
+		go func() {
+			msg, err := m.pubSub.ReceiveMessage(ctx)
+			ch <- result{val: msg, err: err}
+		}()
+	})
 	select {
 	case <-ctx.Done():
 		// 申请锁的耗时如果大于等于最大等待时间，则申请锁失败.
 		return ctx.Err()
 	case <-time.After(time.Duration(pTTL) * time.Millisecond):
 		// 针对“redis 中存在未维护的锁”，即当锁自然过期后，并不会发布通知的锁
-		return m.tryLock(ctx, clientID, expiration)
-		// case <-m.pubSub.Channel():
+		return m.tryLock(ctx, once, ch, clientID, expiration)
 	case value := <-ch:
 		if value.err != nil {
 			return value.err
 		}
 		// 收到解锁通知，则尝试抢锁
-		return m.tryLock(ctx, clientID, expiration)
+		return m.tryLock(ctx, once, ch, clientID, expiration)
 	}
+}
+
+func (m Mutex) TryLock() error {
+	// 单位：ms
+	expiration := int64(m.expiration / time.Millisecond)
+
+	clientID := m.clientIDPrefix + ":" + goroutineNum()
+	// 尝试加锁
+	pTTL, err := m.lock(clientID, expiration)
+	if err != nil {
+		return err
+	}
+	if pTTL != 0 {
+		return errors.Errorf("key %s already locked, please try again after %d ms", m.key, pTTL)
+	}
+	// 加锁成功，开个协程，定时续锁
+	go func() {
+		ticker := time.NewTicker(m.expiration / 3)
+		defer ticker.Stop()
+		for range ticker.C {
+			res, err := m.client.Eval(context.Background(), m.renewalScript, []string{m.key}, expiration, clientID).Int64()
+			if err != nil || res == 0 {
+				return
+			}
+		}
+	}()
+	return nil
 }
 
 func (m Mutex) lock(clientID string, expiration int64) (int64, error) {
@@ -168,8 +188,8 @@ func (m Mutex) lock(clientID string, expiration int64) (int64, error) {
 }
 
 func (m Mutex) Unlock() error {
-	clientID := m.clientIDPrefix + ":" + m.goroutineNum()
-	res, err := m.client.Eval(context.Background(), m.unlockScript, []string{m.key, m.channelName()}, clientID, 1).Int64()
+	clientID := m.clientIDPrefix + ":" + goroutineNum()
+	res, err := m.client.Eval(context.Background(), m.unlockScript, []string{m.key, channelName(m.key)}, clientID, 1).Int64()
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -177,8 +197,4 @@ func (m Mutex) Unlock() error {
 		return errors.Errorf("unknown client: %s", clientID)
 	}
 	return nil
-}
-
-func (m Mutex) channelName() string {
-	return "redisson_lock__channel" + ":{" + m.key + "}"
 }
