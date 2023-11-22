@@ -3,6 +3,7 @@ package job
 import (
 	"context"
 	"reflect"
+	"runtime"
 )
 
 // Job represents an interface to be implemented by structs which represent a 'job'
@@ -37,7 +38,7 @@ func (f *funcJob) Execute(ctx context.Context) {
 
 func NewFuncJob(f func(context.Context)) Job {
 	return &funcJob{
-		key: reflect.TypeOf(f).String(),
+		key: runtime.FuncForPC(reflect.ValueOf(f).Pointer()).Name(),
 		f:   f,
 	}
 }
