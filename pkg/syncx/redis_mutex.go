@@ -118,6 +118,9 @@ type result struct {
 	err error
 }
 
+// ErrNotObtained is returned when a lock cannot be obtained.
+var ErrNotObtained = errors.New("redislock: not obtained")
+
 func (m Mutex) tryLock(ctx context.Context, once *sync.Once, ch chan result, clientID string, expiration int64) error {
 	// 尝试加锁
 	pTTL, err := m.lock(clientID, expiration)
@@ -160,7 +163,8 @@ func (m Mutex) TryLock() error {
 		return err
 	}
 	if pTTL != 0 {
-		return errors.Errorf("key %s already locked, please try again after %d ms", m.key, pTTL)
+		return errors.Errorf("key %s already locked, please try again after %d ms,%w",
+			m.key, pTTL, ErrNotObtained)
 	}
 	// 加锁成功，开个协程，定时续锁
 	go func() {

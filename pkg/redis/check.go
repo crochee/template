@@ -1,6 +1,7 @@
 package redis
 
 import (
+	"context"
 	"sync/atomic"
 	"time"
 
@@ -40,7 +41,7 @@ func checkRedis() {
 }
 
 // CheckRedisInterval 通过定时任务周期性检测Redis服务状态
-func CheckRedisInterval() {
+func CheckRedisInterval(ctx context.Context) {
 	interval := viper.GetInt("redis.check_interval")
 	if interval == 0 {
 		// 默认5秒钟
@@ -48,9 +49,13 @@ func CheckRedisInterval() {
 	}
 	ticker := time.NewTicker(time.Second * time.Duration(interval))
 	defer ticker.Stop()
-
-	for range ticker.C {
-		go checkRedis()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			go checkRedis()
+		}
 	}
 }
 
