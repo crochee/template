@@ -93,6 +93,7 @@ type CustomTransporter struct {
 }
 
 func (c *CustomTransporter) RoundTrip(req *http.Request) (*http.Response, error) {
+	var start, end time.Time
 	ctx := req.Context()
 	// 打印curl语句，便于问题分析和定位
 	curl, err := http2curl.GetCurlCommand(req)
@@ -104,13 +105,15 @@ func (c *CustomTransporter) RoundTrip(req *http.Request) (*http.Response, error)
 	}
 	defer func() {
 		contentStr := FormatContent(content)
-		c.From(ctx).Infof("call Request end content %s", contentStr)
+		c.From(ctx).Infof("total cost:%dms, call Request end content %s", end.Sub(start).Milliseconds(), contentStr)
 		c.Merge(ctx, contentStr)
 	}()
 	var resp *http.Response
+	start = time.Now()
 	if resp, err = c.RoundTripper.RoundTrip(req); err != nil {
 		return nil, err
 	}
+	end = time.Now()
 	defer resp.Body.Close()
 	content.Status = resp.Status
 	if resp.StatusCode == http.StatusNoContent {
