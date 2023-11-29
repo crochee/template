@@ -172,9 +172,8 @@ func (t *timeWheel) GetScheduledJob(key string) (*ScheduledJob, error) {
 		}
 		if task.Key() == key {
 			return &ScheduledJob{
-				Job:         task.Job,
-				TriggerDesc: task.Trigger.Description(),
-				Delay:       task.delay,
+				Job:     task.Job,
+				Trigger: task.Trigger,
 			}, nil
 		}
 		e = e.Next()

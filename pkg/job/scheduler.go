@@ -6,9 +6,8 @@ import (
 
 // ScheduledJob wraps a scheduled Job with its metadata.
 type ScheduledJob struct {
-	Job         Job
-	TriggerDesc string
-	Delay       int64
+	Job     Job
+	Trigger Trigger
 }
 
 // SchedulerRuntime represents a Job orchestrator.
