@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
 	"template/pkg/conc/pool"
@@ -232,9 +231,8 @@ type MetricsSortTable struct {
 	List []*MetricsSort `json:"list"`
 }
 
-func GenerateTableAttr(f Filter) ([]string, string) {
+func GenerateTableAttr(name string, f Filter) ([]string, string) {
 	// 生成 sheet = service_max_top?
-	name := viper.GetString("project.name")
 	sheet := name + "_" + f.Type + "_top" + strconv.Itoa(f.Number)
 
 	// 生成表头信息

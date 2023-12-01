@@ -18,10 +18,10 @@ import (
 
 var defaultFilterDay = []int{1, 2, 3, 4, 5, 6, 7}
 
-func RegisterAPICheck(router *gin.Engine) {
+func RegisterAPICheck(router *gin.Engine, service_name string) {
 	router.GET("/metric/query", listMetricQuery)
 	router.GET("/metric/stat", listMetric)
-	router.GET("/metric/details", listMetricDetail)
+	router.GET("/metric/details", listMetricDetail(service_name))
 }
 
 func listMetric(c *gin.Context) {
@@ -78,54 +78,56 @@ type ListMetricParam struct {
 	Table bool `json:"table" form:"table"`
 }
 
-func listMetricDetail(c *gin.Context) {
-	var (
-		ctx    = c.Request.Context()
-		param  ListMetricParam
-		filter metric.Filter
-	)
+func listMetricDetail(name string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var (
+			ctx    = c.Request.Context()
+			param  ListMetricParam
+			filter metric.Filter
+		)
 
-	if err := c.ShouldBindQuery(&param); err != nil {
-		logger.From(ctx).Error("bind query error", zap.Error(err))
-		resp.ErrorParam(c, err)
-		return
-	}
-	filter.Number = param.Number
-	filter.Type = param.Type
-
-	filter.Labels = make([]*model.Label, 0, len(param.Labels))
-	for _, label := range param.Labels {
-		tmp := strings.Split(label, ",")
-		if len(tmp) != 2 {
-			logger.From(ctx).Error("label format failed")
-			resp.Error(c, code.ErrInvalidParam)
-			return
-		}
-		filter.Labels = append(filter.Labels, &model.Label{Name: tmp[0], Value: tmp[1]})
-	}
-	filter.Days = make([]int, 0, len(param.Days))
-	for _, dayStr := range param.Days {
-		day, err := strconv.Atoi(dayStr)
-		if err != nil {
-			logger.From(ctx).Error("day convert failed", zap.Error(err))
+		if err := c.ShouldBindQuery(&param); err != nil {
+			logger.From(ctx).Error("bind query error", zap.Error(err))
 			resp.ErrorParam(c, err)
 			return
 		}
-		filter.Days = append(filter.Days, day)
-	}
-	if len(filter.Days) == 0 {
-		filter.Days = defaultFilterDay
-	}
+		filter.Number = param.Number
+		filter.Type = param.Type
 
-	response := metric.MetricsSortTable{
-		List: metric.Monitor.MetricsSort(filter),
+		filter.Labels = make([]*model.Label, 0, len(param.Labels))
+		for _, label := range param.Labels {
+			tmp := strings.Split(label, ",")
+			if len(tmp) != 2 {
+				logger.From(ctx).Error("label format failed")
+				resp.Error(c, code.ErrInvalidParam)
+				return
+			}
+			filter.Labels = append(filter.Labels, &model.Label{Name: tmp[0], Value: tmp[1]})
+		}
+		filter.Days = make([]int, 0, len(param.Days))
+		for _, dayStr := range param.Days {
+			day, err := strconv.Atoi(dayStr)
+			if err != nil {
+				logger.From(ctx).Error("day convert failed", zap.Error(err))
+				resp.ErrorParam(c, err)
+				return
+			}
+			filter.Days = append(filter.Days, day)
+		}
+		if len(filter.Days) == 0 {
+			filter.Days = defaultFilterDay
+		}
+
+		response := metric.MetricsSortTable{
+			List: metric.Monitor.MetricsSort(filter),
+		}
+		if param.Table {
+			tableHeader, sheet := metric.GenerateTableAttr(name, filter)
+			resp.SuccessWithFile(c, response, sheet, ptf.Headers(tableHeader))
+			return
+		}
+		c.JSON(http.StatusOK, response)
 	}
-	if param.Table {
-		tableHeader, sheet := metric.GenerateTableAttr(filter)
-		resp.SuccessWithFile(c, response, sheet, ptf.Headers(tableHeader))
-		return
-	}
-	c.JSON(http.StatusOK, response)
 }
 
 type ListMetricQueryConditionResult struct {
