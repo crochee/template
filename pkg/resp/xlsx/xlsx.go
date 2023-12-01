@@ -25,7 +25,8 @@ type xlsxResponse struct {
 }
 
 func (c *xlsxResponse) Render(writer http.ResponseWriter) error {
-	fileName := url.QueryEscape(fmt.Sprintf("%s%d.xls", c.file.Name(), time.Now().Second()))
+	now := time.Now().Local()
+	fileName := url.QueryEscape(fmt.Sprintf("%s%s.xls", c.file.Name(), now.Format("20060102150405")))
 	writer.Header().Set("Content-Type", "application/vnd.ms-excel; charset=utf-8")
 	writer.Header().Set("X-Content-Type-Options", "nosniff")
 	writer.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
