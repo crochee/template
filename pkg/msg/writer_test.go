@@ -3,6 +3,7 @@ package msg
 
 import (
 	"context"
+	"encoding/json"
 	"log"
 	"testing"
 	"time"
@@ -161,4 +162,51 @@ func TestS(t *testing.T) {
 	if err := SubOperation(ctx); err != nil {
 		t.Fatal(err)
 	}
+}
+
+func TestEvent(t *testing.T) {
+	value := &DescContent{
+		List: []Event{
+			{
+				Name:  "exception",
+				Value: "retry all count",
+				Time:  time.Now(),
+			},
+			{
+				Name:  "exception description",
+				Value: "timeout to wait for volume 485380786413930760 status",
+				Time:  time.Now(),
+			},
+			{
+				Name: "http info",
+				Value: HTTPInfo{
+					Request:  `curl --location '172.31.248.3:30086/v2/hosts'`,
+					Response: `{"code":1100009,"message":"没有预先创建订单，请先创建订单","result":null}`,
+					Status:   "200",
+				},
+				Time: time.Now(),
+			},
+		},
+	}
+	desc, err := json.Marshal(value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data := &Metadata{
+		TraceID:      "",
+		ServiceName:  "",
+		Locate:       "",
+		SpanID:       "",
+		ParentSpanID: "",
+		AccountID:    "",
+		UserID:       "",
+		ResID:        "",
+		ResType:      "",
+		SubResID:     "",
+		SubResType:   "",
+		Summary:      "retry all count",
+		Desc:         string(desc),
+		ErrorTime:    time.Now(),
+	}
+	t.Logf("%#v", data)
 }
