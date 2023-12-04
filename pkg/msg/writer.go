@@ -4,17 +4,16 @@ package msg
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	uuid "github.com/gofrs/uuid"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/streadway/amqp"
-	"go.opentelemetry.io/otel/attribute"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 
 	"template/pkg/async"
-	"template/pkg/json"
 	"template/pkg/logger/gormx"
 )
 
@@ -55,6 +54,22 @@ type Writer struct {
 	mux sync.RWMutex
 }
 
+type DescContent struct {
+	List []Event `json:"list"`
+}
+
+type Event struct {
+	Name  string      `json:"name"`
+	Value interface{} `json:"value"`
+	Time  time.Time   `json:"time"`
+}
+
+type HTTPInfo struct {
+	Request  string `json:"request"`
+	Response string `json:"response"`
+	Status   string `json:"status"`
+}
+
 func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan) error {
 	if len(spans) == 0 {
 		return nil
@@ -62,42 +77,71 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 	result := make([]amqp.Publishing, 0, len(spans))
 	for i := range spans {
 		metadata := w.MetadataPool.Get()
-		var hasErr bool
 		events := spans[i].Events()
-		tempEvents := make([]sdktrace.Event, 0, len(events))
+		// tempEvents := make([]sdktrace.Event, 0, len(events))
+		tempEvents := &DescContent{}
+		// 去重map初始化
+		oreqMap := make(map[string]Event)
 
 		for _, event := range events {
 			switch event.Name {
 			case semconv.ExceptionEventName:
 				metadata.ErrorTime = event.Time
 				for _, attr := range event.Attributes {
-					if attr.Key == semconv.ExceptionMessageKey {
+					switch attr.Key {
+					case semconv.ExceptionMessageKey:
 						metadata.Summary = attr.Value.AsString()
+						tempEvents.List = append(tempEvents.List, Event{
+							Name:  "exception",
+							Value: metadata.Summary,
+							Time:  event.Time,
+						})
+					case MsgKey:
+						tempEvents.List = append(tempEvents.List, Event{
+							Name:  "exception description",
+							Value: attr.Value.AsString(),
+							Time:  event.Time,
+						})
+					default:
 					}
 				}
-				hasErr = true
 			case CurlEvent:
-				if len(tempEvents) > 0 {
-					// 对curl事件进行裁剪，防止出现循环请求，导致内容过长
-					oreq := w.getRequest(tempEvents[len(tempEvents)-1].Attributes)
-					req := w.getRequest(event.Attributes)
-					if oreq != "" && req == oreq {
-						continue
+				for _, tempAttr := range event.Attributes {
+					if tempAttr.Key == MsgKey {
+						var content HTTPInfo
+						if err := w.JSONHandler.Unmarshal([]byte(tempAttr.Value.AsString()), &content); err != nil {
+							w.From(ctx).Errorf("unmarshal attributes failed,%+v", err)
+							oreqMap[content.Request] = Event{
+								Name:  "http info",
+								Value: tempAttr.Value.AsString(),
+								Time:  event.Time,
+							}
+							continue
+						}
+						oreqMap[content.Request] = Event{
+							Name:  "http info",
+							Value: content,
+							Time:  event.Time,
+						}
 					}
 				}
 			default:
 			}
-			tempEvents = append(tempEvents, sdktrace.Event{
-				Name:                  event.Name,
-				Attributes:            event.Attributes,
-				DroppedAttributeCount: event.DroppedAttributeCount,
-				Time:                  event.Time,
-			})
 		}
-		if !hasErr {
+		if len(tempEvents.List) == 0 {
 			w.MetadataPool.Put(metadata)
 			continue
 		}
+		for _, httpInfo := range oreqMap {
+			tempEvents.List = append(tempEvents.List, httpInfo)
+		}
+		data, err := w.JSONHandler.Marshal(tempEvents)
+		if err != nil {
+			w.From(ctx).Errorf("marshal events failed,%+v", err)
+			continue
+		}
+		metadata.Desc = string(data)
+
 		for _, attr := range spans[i].Attributes() {
 			switch attr.Key {
 			case LocateKey:
@@ -117,12 +161,6 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 			default:
 			}
 		}
-		data, err := w.JSONHandler.Marshal(tempEvents)
-		if err != nil {
-			w.From(ctx).Errorf("marshal events failed,%+v", err)
-			continue
-		}
-		metadata.Desc = string(data)
 		metadata.TraceID = "req-" + uuid.UUID(spans[i].SpanContext().TraceID()).String()
 		metadata.ServiceName = w.ServiceNameFunc()
 		metadata.SpanID = spans[i].SpanContext().SpanID().String()
@@ -133,12 +171,12 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 		data, err = w.JSONHandler.Marshal(metadata)
 		w.MetadataPool.Put(metadata)
 		if err != nil {
-			w.From(ctx).Errorf("Publish failed,%+v", err)
+			w.From(ctx).Errorf("Publish failed,%+v,trace_id:%s", err, metadata.TraceID)
 			continue
 		}
 		msg, err := w.marshal.Marshal(message.NewMessage(metadata.TraceID, data))
 		if err != nil {
-			w.From(ctx).Errorf("marshal failed,%+v", err)
+			w.From(ctx).Errorf("marshal failed,%+v,trace_id:%s", err, metadata.TraceID)
 			continue
 		}
 		result = append(result, msg)
@@ -147,22 +185,6 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 		w.From(ctx).Errorf("Publish failed,%+v", err)
 	}
 	return nil
-}
-
-func (w *Writer) getRequest(attrs []attribute.KeyValue) string {
-	for _, tempAttr := range attrs {
-		if tempAttr.Key == MsgKey {
-			var content struct {
-				Request  string
-				Response string
-				Status   string
-			}
-			if err := json.Unmarshal([]byte(tempAttr.Value.AsString()), &content); err == nil {
-				return content.Request
-			}
-		}
-	}
-	return ""
 }
 
 func (w *Writer) Shutdown(ctx context.Context) error {
