@@ -103,7 +103,7 @@ type restfulClient struct {
 }
 
 // NewRESTClient start to reqest
-func NewRESTClient(transport Transport, method string) RESTClient {
+func NewRESTClient(transport Transport, method string) *restfulClient {
 	return &restfulClient{c: transport, verb: method, From: gormx.Nop}
 }
 
