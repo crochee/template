@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/pkgerrors"
 
 	"template/pkg/timex"
 )
@@ -53,6 +54,7 @@ func NewZeroLogger(opts ...Option) *Logger {
 	}
 	l := newZeroLevel(opt.level)
 	zerolog.TimeFieldFormat = time.RFC3339Nano
+	zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
 	return &Logger{
 		Logger: zerolog.New(&dynamicLevelWriter{level: l, Writer: opt.writer}).
 			With().
