@@ -8,9 +8,9 @@ import (
 )
 
 type TransportContent struct {
-	Request  string
-	Response string
-	Status   string
+	Request  string `json:"request"`
+	Response string `json:"response"`
+	Status   string `json:"status"`
 }
 
 func FormatContent(content *TransportContent) string {
