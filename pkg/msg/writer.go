@@ -110,8 +110,8 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 					if tempAttr.Key == MsgKey {
 						var content HTTPInfo
 						if err := w.JSONHandler.Unmarshal([]byte(tempAttr.Value.AsString()), &content); err != nil {
-							w.From(ctx).Errorf("unmarshal attributes failed,%+v", err)
-							oreqMap[content.Request] = Event{
+							w.From(ctx).Warnf("unmarshal attributes failed,%+v", err)
+							oreqMap[tempAttr.Value.AsString()] = Event{
 								Name:  "http info",
 								Value: tempAttr.Value.AsString(),
 								Time:  event.Time,
