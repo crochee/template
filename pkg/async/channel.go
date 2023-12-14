@@ -1,7 +1,6 @@
 package async
 
 import (
-	"errors"
 	"fmt"
 	"math"
 	"sync"
@@ -104,7 +103,7 @@ type rabbitmqChannel struct {
 	clientOption
 	conn    *amqp.Connection
 	channel *amqp.Channel
-	mu      sync.Mutex
+	mu      sync.RWMutex
 }
 
 func (r *rabbitmqChannel) Close() error {
@@ -133,47 +132,6 @@ func (r *rabbitmqChannel) connect() error {
 	return nil
 }
 
-func (r *rabbitmqChannel) retry() error {
-	if r.attempts > 0 && r.conn.IsClosed() {
-		var (
-			tempAttempts int
-			err          error
-		)
-		backOff := r.newBackOff() // 退避算法 保证时间间隔为指数级增长
-		currentInterval := 0 * time.Millisecond
-		timer := time.NewTimer(currentInterval)
-		for range timer.C {
-			shouldRetry := tempAttempts < r.attempts
-			if !shouldRetry {
-				timer.Stop()
-				return err
-			}
-			retryErr := r.connect()
-			if retryErr == nil {
-				timer.Stop()
-				return nil
-			}
-			var permanent *backoff.PermanentError
-			if errors.As(retryErr, &permanent) {
-				err = multierr.Append(err, fmt.Errorf("%w %d try", permanent.Err, tempAttempts+1))
-				shouldRetry = false
-			} else {
-				err = multierr.Append(err, fmt.Errorf("%w %d try", retryErr, tempAttempts+1))
-			}
-			if !shouldRetry {
-				timer.Stop()
-				return err
-			}
-			// 计算下一次
-			currentInterval = backOff.NextBackOff()
-			tempAttempts++
-			// 定时器重置
-			timer.Reset(currentInterval)
-		}
-	}
-	return nil
-}
-
 func (r *rabbitmqChannel) newBackOff() backoff.BackOff {
 	if r.attempts < 2 || r.interval <= 0 {
 		return &backoff.ZeroBackOff{}
@@ -193,18 +151,23 @@ func (r *rabbitmqChannel) newBackOff() backoff.BackOff {
 }
 
 func (r *rabbitmqChannel) Publish(exchange, key string, mandatory, immediate bool, msg ...amqp.Publishing) error {
-	if err := r.retry(); err != nil {
-		return err
-	}
-	if r.tx {
-		return r.txPublish(exchange, key, mandatory, immediate, msg...)
-	}
-	for _, m := range msg {
-		if err := r.channel.Publish(exchange, key, mandatory, immediate, m); err != nil {
+	publish := func() error {
+		if err := r.connect(); err != nil {
 			return err
 		}
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		if r.tx {
+			return r.txPublish(exchange, key, mandatory, immediate, msg...)
+		}
+		for i := range msg {
+			if err := r.channel.Publish(exchange, key, mandatory, immediate, msg[i]); err != nil {
+				return err
+			}
+		}
+		return nil
 	}
-	return nil
+	return backoff.Retry(publish, r.newBackOff())
 }
 
 func (r *rabbitmqChannel) txPublish(exchange, key string, mandatory, immediate bool, msg ...amqp.Publishing) (err error) {
@@ -228,29 +191,40 @@ func (r *rabbitmqChannel) txPublish(exchange, key string, mandatory, immediate b
 
 func (r *rabbitmqChannel) Consume(queue, consumer string, autoAck, exclusive, noLocal, noWail bool,
 	args amqp.Table) (<-chan amqp.Delivery, error) {
-	if err := r.retry(); err != nil {
+	var delivery <-chan amqp.Delivery
+	consume := func() error {
+		err := r.connect()
+		if err != nil {
+			return err
+		}
+		r.mu.RLock()
+		defer r.mu.RUnlock()
+		if r.qos != nil {
+			if err := r.channel.Qos(r.qos.PrefetchCount, r.qos.PrefetchSize, r.qos.Global); err != nil {
+				return fmt.Errorf("set qos failed,%w", err)
+			}
+		}
+		delivery, err = r.channel.Consume(
+			queue,
+			// 用来区分多个消费者
+			consumer,
+			// 是否自动应答(自动应答确认消息，这里设置为否，在下面手动应答确认)
+			autoAck,
+			// 是否具有排他性
+			exclusive,
+			// 如果设置为true，表示不能将同一个connection中发送的消息
+			// 传递给同一个connection的消费者
+			noLocal,
+			// 是否为阻塞
+			noWail,
+			args,
+		)
+		return err
+	}
+	if err := backoff.Retry(consume, r.newBackOff()); err != nil {
 		return nil, err
 	}
-	if r.qos != nil {
-		if err := r.channel.Qos(r.qos.PrefetchCount, r.qos.PrefetchSize, r.qos.Global); err != nil {
-			return nil, fmt.Errorf("set qos failed,%w", err)
-		}
-	}
-	return r.channel.Consume(
-		queue,
-		// 用来区分多个消费者
-		consumer,
-		// 是否自动应答(自动应答确认消息，这里设置为否，在下面手动应答确认)
-		autoAck,
-		// 是否具有排他性
-		exclusive,
-		// 如果设置为true，表示不能将同一个connection中发送的消息
-		// 传递给同一个connection的消费者
-		noLocal,
-		// 是否为阻塞
-		noWail,
-		args,
-	)
+	return delivery, nil
 }
 
 func (r *rabbitmqChannel) DeclareAndBind(exchange, kind, queue, key string, args ...map[string]interface{}) error {
