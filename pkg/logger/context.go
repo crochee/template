@@ -21,18 +21,13 @@ func With(ctx context.Context, l *zap.Logger) context.Context {
 	return context.WithValue(ctx, logKey{}, l)
 }
 
-type zeroLogKey struct{}
-
 // WithContext Adds log to context.Context.
 func WithContext(ctx context.Context, log *Logger) context.Context {
-	return context.WithValue(ctx, zeroLogKey{}, log)
+	return (&log.Logger).WithContext(ctx)
 }
 
 // FromContext Gets the log from context.Context.
 func FromContext(ctx context.Context) *Logger {
-	l, ok := ctx.Value(zeroLogKey{}).(*Logger)
-	if !ok {
-		l = &Logger{Logger: zerolog.Nop()}
-	}
-	return l
+	l := zerolog.Ctx(ctx)
+	return &Logger{Logger: *l}
 }
