@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"go.opentelemetry.io/otel"
@@ -13,6 +14,7 @@ import (
 	"go.uber.org/automaxprocs/maxprocs"
 
 	"template/pkg/async"
+	"template/pkg/logger/gormx"
 	"template/pkg/msg"
 )
 
@@ -21,14 +23,25 @@ func init() {
 	maxprocs.Set(maxprocs.Logger(nil))
 }
 
-var exp *msg.Writer
+var (
+	exp *msg.Writer
+
+	processorRWMutex sync.RWMutex
+	processor        *msg.BatchSpanProcessor
+)
 
 // New 更新全局参数
-func New(getTraceID func(context.Context) string, opts ...func(*msg.WriterOption)) {
+func New(ctx context.Context, getTraceID func(context.Context) string, opts ...func(*msg.WriterOption)) {
 	exp = msg.NewWriter(opts...)
 
+	processor = msg.NewBatchSpanProcessor(exp,
+		msg.WithLoggerFrom(func(context.Context) gormx.Logger {
+			return gormx.NewZapGormWriterFrom(ctx)
+		}),
+	)
+
 	tpOpts := []sdktrace.TracerProviderOption{
-		sdktrace.WithBatcher(exp),
+		sdktrace.WithSpanProcessor(processor),
 		sdktrace.WithIDGenerator(msg.DefaultIDGenerator(getTraceID)),
 	}
 	tp := sdktrace.NewTracerProvider(
