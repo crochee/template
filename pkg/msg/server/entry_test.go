@@ -4,7 +4,7 @@ package server_test
 import (
 	"context"
 	"errors"
-	"log"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -16,28 +16,42 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"template/pkg/async"
+	"template/pkg/logger"
+	"template/pkg/logger/gormx"
 	"template/pkg/msg"
 	"template/pkg/msg/server"
 )
 
 func TestError(t *testing.T) {
+
+	ctx, cancel := context.WithTimeout(logger.With(context.Background(), logger.New()), 20*time.Second)
+	defer cancel()
+
 	ctl := gomock.NewController(t)
 	defer ctl.Finish()
-
 	p := async.NewMockProducer(ctl)
 	p.EXPECT().Publish(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, _ async.Channel, exchange, routingKey string, param interface{}) error {
-			log.Printf("ex:%s key:%s ,%s\n", exchange, routingKey, param.([]amqp.Publishing)[0].Body)
+			logger.From(ctx).Sugar().Infof("ex:%s key:%s ,%s\n", exchange, routingKey, param.([]amqp.Publishing)[0].Body)
 			return nil
 		}).
 		AnyTimes()
 
+	form := func(context.Context) gormx.Logger {
+		return gormx.NewZapGormWriterFrom(ctx)
+	}
 	exp := msg.NewWriter(func(o *msg.WriterOption) {
 		o.Publisher = p
+		o.From = form
 	})
 
 	tpOpts := []sdktrace.TracerProviderOption{
-		sdktrace.WithSyncer(exp),
+		sdktrace.WithSpanProcessor(
+			msg.NewBatchSpanProcessor(exp,
+				msg.WithMaxQueueSize(2),
+				msg.WithMaxExportBatchSize(1),
+				msg.WithLoggerFrom(form),
+			)),
 		sdktrace.WithIDGenerator(msg.DefaultIDGenerator(func(context.Context) string {
 			return uuid.NewV4().String()
 		})),
@@ -47,14 +61,15 @@ func TestError(t *testing.T) {
 	)
 	otel.SetTracerProvider(tp)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	ctx, span := otel.Tracer("server").Start(ctx, "TestError")
-	server.Merge(ctx, "debug")
-	server.Resource(ctx, "12", "name", "34", "sub_name")
-	for i := 0; i < 2; i++ {
-		index := strconv.Itoa(i)
-		server.Errorf(ctx, errors.New(index), "io%d", i)
+	for i := 0; i < 6; i++ {
+		ctx, span := otel.Tracer("server").Start(ctx, fmt.Sprintf("TestError%d", i))
+		server.Merge(ctx, "debug")
+		server.Resource(ctx, "12", "name", "34", "sub_name")
+		for i := 0; i < 2; i++ {
+			index := strconv.Itoa(i)
+			server.Errorf(ctx, errors.New(index), "io%d", i)
+		}
+		span.End()
 	}
-	span.End()
+	time.Sleep(2 * time.Second)
 }

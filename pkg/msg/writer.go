@@ -187,7 +187,6 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 }
 
 func (w *Writer) Shutdown(ctx context.Context) error {
-	defer w.GetPublisher().Close()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
