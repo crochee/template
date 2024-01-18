@@ -26,7 +26,7 @@ func Success(c *gin.Context, data ...interface{}) {
 		SuccessWithFile(c, data...)
 	case "*/*", "application/json", "":
 		c.JSON(http.StatusOK, map[string]interface{}{
-			"code":    200,
+			"code":    "200",
 			"message": "请求成功",
 			"result":  data[0],
 		})

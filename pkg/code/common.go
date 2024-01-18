@@ -16,6 +16,16 @@ var (
 	ErrUnauthorized         = Froze("COMMON.4010000007", "用户未认证")
 	ErrCodeUnknown          = Froze("COMMON.5000000008", "未知错误")
 	ErrCodeRedisCacheOption = Froze("COMMON.5000000009", "Redis缓存操作失败")
+
+	// woslo 错误
+	ErrCodeInvalidParam        = Froze("400-1000000", "请求参数不正确")
+	ErrCodeNotFound            = Froze("404-1000001", "资源不存在")
+	ErrCodeInternalServerError = Froze("500-1000002", "服务器内部错误")
+	ErrCodeInvalidStatus       = Froze("500-1000003", "资源状态不满足操作要求")
+	ErrCodeEUnknown            = Froze("500-1000004", "未知错误")
+	ErrCodeForbidden           = Froze("403-1000005", "禁止请求")
+	ErrCodeInvalidBody         = Froze("500-1000006", "响应体无法被正常解析")
+	ErrCodeERedisCacheOption   = Froze("500-1100129", "Redis缓存操作失败")
 )
 
 // AddCode business code to codeMessageBox
@@ -31,6 +41,15 @@ func AddCode(m map[ErrorCode]struct{}) error {
 		ErrUnauthorized:         {},
 		ErrCodeUnknown:          {},
 		ErrCodeRedisCacheOption: {},
+
+		ErrCodeInvalidParam:        {},
+		ErrCodeNotFound:            {},
+		ErrCodeInternalServerError: {},
+		ErrCodeInvalidStatus:       {},
+		ErrCodeEUnknown:            {},
+		ErrCodeForbidden:           {},
+		ErrCodeInvalidBody:         {},
+		ErrCodeERedisCacheOption:   {},
 	} {
 		if err := check(errorCode); err != nil {
 			return err
