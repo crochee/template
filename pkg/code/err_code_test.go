@@ -1,7 +1,9 @@
 package code
 
 import (
+	"encoding/json"
 	"errors"
+	"reflect"
 	"testing"
 )
 
@@ -34,6 +36,14 @@ func TestFroze(t *testing.T) {
 		{
 			name: "nil",
 			args: args{
+				code:    "400-0000002",
+				message: "",
+			},
+			want: ErrInvalidParam,
+		},
+		{
+			name: "nil",
+			args: args{
 				code:    "0000002",
 				message: "",
 			},
@@ -47,4 +57,25 @@ func TestFroze(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMarshal(t *testing.T) {
+	t.Run("new", func(t *testing.T) {
+		data, err := json.Marshal(ErrInternalServerError)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(data, []byte("{\"code\":\"5000000001\",\"message\":\"服务器内部错误\",\"result\":null}")) {
+			t.Fatal(string(data))
+		}
+	})
+	t.Run("old", func(t *testing.T) {
+		data, err := json.Marshal(ErrCodeInternalServerError)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !reflect.DeepEqual(data, []byte("{\"code\":\"5001000002\",\"message\":\"服务器内部错误\",\"result\":null}")) {
+			t.Fatal(string(data))
+		}
+	})
 }

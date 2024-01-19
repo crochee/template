@@ -93,14 +93,14 @@ func (e *errCode) Is(v error) bool {
 	return err.Code() == e.Code()
 }
 
+// Froze init ErrorCode from content
 func (e *errCode) Froze(code, message string, result interface{}) ErrorCode {
 	// 默认 ErrInternalServerError
-	e.serviceName = "undefined"
 	e.httpStatusCode = http.StatusInternalServerError
 	e.code = "0000001"
 	e.message = message
 
-	multiErrCode := code
+	multiErrCode := strings.ReplaceAll(code, "-", "")
 	index := strings.Index(multiErrCode, ".")
 	if index > 0 {
 		e.serviceName = multiErrCode[:index]
@@ -128,7 +128,7 @@ func (e *errCode) Froze(code, message string, result interface{}) ErrorCode {
 }
 
 func (e *errCode) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
+	var result = struct {
 		Code    string      `json:"code"`
 		Message string      `json:"message"`
 		Result  interface{} `json:"result"`
@@ -136,7 +136,12 @@ func (e *errCode) MarshalJSON() ([]byte, error) {
 		Code:    fmt.Sprintf("%s.%3d%s", e.ServiceName(), e.StatusCode(), e.Code()),
 		Message: e.Message(),
 		Result:  e.Result(),
-	})
+	}
+	if e.ServiceName() == "" {
+		result.Code = fmt.Sprintf("%3d%s", e.StatusCode(), e.Code())
+	}
+
+	return json.Marshal(result)
 }
 
 func (e *errCode) UnmarshalJSON(bytes []byte) error {

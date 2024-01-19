@@ -7,15 +7,15 @@ import (
 var (
 	// 00~99为服务级别错误码
 
-	ErrInternalServerError  = Froze("COMMON.5000000001", "服务器内部错误")
-	ErrInvalidParam         = Froze("COMMON.4000000002", "请求参数不正确")
-	ErrNotFound             = Froze("COMMON.4040000003", "资源不存在")
-	ErrNotAllowMethod       = Froze("COMMON.4050000004", "不允许此方法")
-	ErrParseContent         = Froze("COMMON.5000000005", "解析内容失败")
-	ErrForbidden            = Froze("COMMON.4030000006", "不允许访问")
-	ErrUnauthorized         = Froze("COMMON.4010000007", "用户未认证")
-	ErrCodeUnknown          = Froze("COMMON.5000000008", "未知错误")
-	ErrCodeRedisCacheOption = Froze("COMMON.5000000009", "Redis缓存操作失败")
+	ErrInternalServerError  = Froze("5000000001", "服务器内部错误")
+	ErrInvalidParam         = Froze("4000000002", "请求参数不正确")
+	ErrNotFound             = Froze("4040000003", "资源不存在")
+	ErrNotAllowMethod       = Froze("4050000004", "不允许此方法")
+	ErrParseContent         = Froze("5000000005", "解析内容失败")
+	ErrForbidden            = Froze("4030000006", "不允许访问")
+	ErrUnauthorized         = Froze("4010000007", "用户未认证")
+	ErrCodeUnknown          = Froze("5000000008", "未知错误")
+	ErrCodeRedisCacheOption = Froze("5000000009", "Redis缓存操作失败")
 
 	// woslo 错误
 	ErrCodeInvalidParam        = Froze("400-1000000", "请求参数不正确")
@@ -84,8 +84,19 @@ func check(err ErrorCode) error {
 	if statusCode < 100 || statusCode >= 600 {
 		return fmt.Errorf("error code %s has invalid status code %d", code, statusCode)
 	}
-	if l := len(code); l != 7 {
-		return fmt.Errorf("error code %s is %d,but it must be 7", code, l)
-	}
 	return nil
+}
+
+func MapErr(err error, opts ...func(error) error) error {
+	for _, f := range opts {
+		err = f(err)
+	}
+	return err
+}
+
+func OkOrDefault(err error) error {
+	if v, ok := err.(ErrorCode); ok {
+		return v
+	}
+	return ErrCodeInternalServerError.WithResult(err.Error())
 }
