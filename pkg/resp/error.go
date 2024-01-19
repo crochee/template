@@ -5,12 +5,11 @@ import (
 	"fmt"
 
 	"github.com/gin-gonic/gin"
+	"github.com/pkg/errors"
 	semconv "go.opentelemetry.io/otel/semconv/v1.17.0"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 
 	"template/pkg/code"
-	"template/pkg/logger"
 	"template/pkg/msg"
 )
 
@@ -27,14 +26,11 @@ func (r *Response) Convert(statusCode int) code.ErrorCode {
 
 // Error gin Response with error
 func Error(c *gin.Context, err error) {
-	ctx := c.Request.Context()
-	logger.From(ctx).Error("response failed", zap.Error(err))
-
-	span := trace.SpanFromContext(ctx)
-	span.AddEvent(semconv.ExceptionEventName, trace.WithAttributes(
-		msg.LocateKey.String(msg.CallerFunc(0)),
-		semconv.ExceptionMessage(fmt.Sprintf("%+v", err)),
-	))
+	trace.SpanFromContext(c.Request.Context()).AddEvent(semconv.ExceptionEventName,
+		trace.WithAttributes(
+			msg.LocateKey.String(msg.CallerFunc(0)),
+			semconv.ExceptionMessage(fmt.Sprintf("%+v", err)),
+		))
 	for err != nil {
 		u, ok := err.(interface {
 			Unwrap() error
@@ -48,12 +44,7 @@ func Error(c *gin.Context, err error) {
 		c.AbortWithStatusJSON(code.ErrInternalServerError.StatusCode(), code.ErrInternalServerError)
 		return
 	}
-	sc, scok := err.(interface {
-		StatusCode() int
-		Code() string
-		Message() string
-		Result() interface{}
-	})
+	sc, scok := err.(code.ErrorCode)
 	if !scok {
 		c.AbortWithStatusJSON(code.ErrCodeUnknown.StatusCode(), &Response{
 			Code:    fmt.Sprintf("%s.%3d%s", code.ErrCodeUnknown.ServiceName(), code.ErrCodeUnknown.StatusCode(), code.ErrCodeUnknown.Code()),
@@ -72,7 +63,7 @@ func Error(c *gin.Context, err error) {
 	})
 	if !snok {
 		c.AbortWithStatusJSON(sc.StatusCode(), &Response{
-			Code:    sc.Code(),
+			Code:    fmt.Sprintf("%3d%s", sc.StatusCode(), sc.Code()),
 			Message: sc.Message(),
 			Result:  sc.Result(),
 		})
@@ -88,5 +79,6 @@ func Error(c *gin.Context, err error) {
 // ErrorParam gin response with invalid parameter tip
 func ErrorParam(c *gin.Context, err error) {
 	Error(c,
-		code.ErrInvalidParam.WithResult(err.Error()))
+		errors.WithStack(
+			code.ErrInvalidParam.WithResult(err.Error())))
 }
