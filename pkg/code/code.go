@@ -11,4 +11,5 @@ type ErrorCode interface {
 	WithCode(string) ErrorCode
 	WithMessage(string) ErrorCode
 	WithResult(interface{}) ErrorCode
+	Is(error) bool
 }
