@@ -100,3 +100,16 @@ func OkOrDefault(err error) error {
 	}
 	return ErrCodeInternalServerError.WithResult(err.Error())
 }
+
+func Unwrap(err error) error {
+	for err != nil {
+		u, ok := err.(interface {
+			Unwrap() error
+		})
+		if !ok {
+			break
+		}
+		err = u.Unwrap()
+	}
+	return err
+}
