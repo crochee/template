@@ -92,11 +92,18 @@ func WrapResult(result ...interface{}) interface{} {
 }
 
 // List 包裹DCS List回结果
-func List(c *gin.Context, list interface{}, pageNum, pageSize int, total int64) {
-	c.JSON(http.StatusOK, WrapResult(map[string]interface{}{
+func List(c *gin.Context, list interface{}, pageNum, pageSize int, total int64, values ...map[string]interface{}) {
+	result := map[string]interface{}{
 		"list":      list,
 		"page_num":  pageNum,
 		"page_size": pageSize,
 		"total":     total,
-	}))
+	}
+
+	for _, value := range values {
+		for k, v := range value {
+			result[k] = v
+		}
+	}
+	c.JSON(http.StatusOK, WrapResult(result))
 }
