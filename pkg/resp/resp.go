@@ -25,11 +25,7 @@ func Success(c *gin.Context, data ...interface{}) {
 	case "application/vnd.ms-excel", "text/csv":
 		SuccessWithFile(c, data...)
 	case "*/*", "application/json", "":
-		c.JSON(http.StatusOK, map[string]interface{}{
-			"code":    "200",
-			"message": "请求成功",
-			"result":  data[0],
-		})
+		c.JSON(http.StatusOK, WrapResult(data...))
 	}
 }
 
@@ -81,4 +77,16 @@ func SuccessWithFile(c *gin.Context, data ...interface{}) {
 	}
 	_ = file.Sync()
 	c.Render(http.StatusOK, r)
+}
+
+// WrapResult 包裹DCS返回结果
+func WrapResult(result ...interface{}) interface{} {
+	response := map[string]interface{}{
+		"code":    "200",
+		"message": "请求成功",
+	}
+	if len(result) > 0 {
+		response["result"] = result[0]
+	}
+	return response
 }
