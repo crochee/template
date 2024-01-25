@@ -44,7 +44,13 @@ func Error(c *gin.Context, err error) {
 		c.AbortWithStatusJSON(code.ErrInternalServerError.StatusCode(), code.ErrInternalServerError)
 		return
 	}
-	sc, scok := err.(code.ErrorCode)
+	sc, scok := err.(interface {
+		ServiceName() string
+		StatusCode() int
+		Code() string
+		Message() string
+		Result() interface{}
+	})
 	if !scok {
 		c.AbortWithStatusJSON(code.ErrCodeUnknown.StatusCode(), &Response{
 			Code:    fmt.Sprintf("%s.%3d%s", code.ErrCodeUnknown.ServiceName(), code.ErrCodeUnknown.StatusCode(), code.ErrCodeUnknown.Code()),
