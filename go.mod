@@ -19,6 +19,7 @@ require (
 	github.com/mattn/go-colorable v0.1.6
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/orcaman/concurrent-map v1.0.0
+	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
 	github.com/pressly/goose v2.7.0+incompatible
 	github.com/rabbitmq/amqp091-go v1.7.0
@@ -96,7 +97,7 @@ require (
 	github.com/jedib0t/go-pretty/v6 v6.4.9
 	github.com/tidwall/pretty v1.2.1 // indirect
 	go.opentelemetry.io/otel/internal/metric v0.27.0 // indirect
-	golang.org/x/crypto v0.5.0 // indirect
+	golang.org/x/crypto v0.5.0
 	golang.org/x/net v0.5.0
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
 )
