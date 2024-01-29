@@ -13,10 +13,9 @@ var (
 	HeaderAccountName   = textproto.CanonicalMIMEHeaderKey("X-Account-Name")
 	HeaderRealIP        = textproto.CanonicalMIMEHeaderKey("X-Real-IP")
 	HeaderCallFrom      = textproto.CanonicalMIMEHeaderKey("X-Call-From")
-
-	HeaderEventID = textproto.CanonicalMIMEHeaderKey("X-Event-ID")
-
-	HeaderTraceID = textproto.CanonicalMIMEHeaderKey("X-Trace-ID")
+	HeaderEventID       = textproto.CanonicalMIMEHeaderKey("X-Event-ID")
+	HeaderTraceID       = textproto.CanonicalMIMEHeaderKey("X-Trace-ID")
+	HeaderRequestID     = textproto.CanonicalMIMEHeaderKey("X-Request-ID")
 
 	HeaderCacheControl = textproto.CanonicalMIMEHeaderKey("Cache-Control")
 
@@ -24,6 +23,8 @@ var (
 	HeaderGWAccountID = textproto.CanonicalMIMEHeaderKey("Accountid")
 	HeaderGWUserID    = textproto.CanonicalMIMEHeaderKey("Userid")
 	HeaderGWToken     = textproto.CanonicalMIMEHeaderKey("Token")
+
+	HeaderContentLength = textproto.CanonicalMIMEHeaderKey("Content-Length")
 )
 
 const (
@@ -62,4 +63,10 @@ const (
 // Authorization Basic
 const (
 	AuthorizationBasic = "Basic"
+)
+
+const (
+	APIFromConsole    = "pokerface"
+	APIFromSitekeeper = "sitekeeper"
+	APIFromCeen       = "ceen"
 )
