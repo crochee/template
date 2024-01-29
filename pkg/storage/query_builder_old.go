@@ -9,6 +9,7 @@ import (
 
 	"template/pkg/timex"
 	"template/pkg/utils"
+	"template/pkg/utils/v"
 )
 
 // PrimaryFilter 过滤
@@ -29,15 +30,15 @@ type PrimaryFilter struct {
 var (
 	getAccountID      func(ctx context.Context) string
 	getAdminID        func(ctx context.Context) string
-	getAPIFromConsole func(ctx context.Context) bool
-	isPrivate         func(ctx context.Context) bool
+	getAPIFromConsole func(ctx context.Context) string
+	isPrivate         func() bool
 )
 
 func SetFunc(
 	getAccountIDFunc func(ctx context.Context) string,
 	getAdminIDFunc func(ctx context.Context) string,
-	getAPIFromConsoleFunc func(ctx context.Context) bool,
-	isPrivateFunc func(ctx context.Context) bool,
+	getAPIFromConsoleFunc func(ctx context.Context) string,
+	isPrivateFunc func() bool,
 ) {
 	getAccountID = getAccountIDFunc
 	getAdminID = getAdminIDFunc
@@ -95,9 +96,9 @@ func (p *PrimaryFilter) Build(ctx context.Context, query *gorm.DB, opts ...SQLOp
 }
 
 func (p *PrimaryFilter) BuildPrivate(ctx context.Context, query *gorm.DB, opts ...SQLOption) *gorm.DB {
-	if isPrivate != nil && isPrivate(ctx) {
+	if isPrivate != nil && isPrivate() {
 		// 【私有云】
-		if getAPIFromConsole != nil && !getAPIFromConsole(ctx) {
+		if getAPIFromConsole != nil && getAPIFromConsole(ctx) == v.APIFromConsole {
 			// 不是来源于pokerface的请求参数
 			// 适用于pass下的私有云
 			// 如果header’s X-Account-ID不为空，则需要把X-Account-ID追加到查询条件中
@@ -138,7 +139,7 @@ func (p *PrimaryFilter) BuildStaff(ctx context.Context, query *gorm.DB, opts ...
 }
 
 func (p *PrimaryFilter) BuildPublic(ctx context.Context, query *gorm.DB, opts ...SQLOption) *gorm.DB {
-	if isPrivate != nil && !isPrivate(ctx) && getAdminID != nil && getAdminID(ctx) == "" {
+	if isPrivate != nil && !isPrivate() && getAdminID != nil && getAdminID(ctx) == "" {
 		// 【行业云】
 		// 如果header’s X-Account-ID不为空，则需要把X-Account-ID追加到查询条件中
 		if p.AccountID != "" {
