@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,6 +11,12 @@ import (
 	"gorm.io/gorm"
 	glogger "gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
+)
+
+var (
+	NotFound           = gorm.ErrRecordNotFound
+	ErrNotRowsAffected = errors.New("0 rows affected")
+	ErrDuplicate       = "1062: Duplicate"
 )
 
 type option struct {
