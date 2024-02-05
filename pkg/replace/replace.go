@@ -8,7 +8,7 @@ import (
 	"template/pkg/json"
 )
 
-var pwdReplacer = NewManagerReplacer("password", "vncPwd", "vnc_pwd", "adminPass", "admin_pass", "virtualMachinePwd", "tenantPassword")
+var pwdReplacer = NewManagerReplacer("password", "vncPwd", "vnc_pwd", "adminPass", "admin_pass", "virtualMachinePwd", "tenantPassword", "user_data", "userData")
 
 func PwdReplacerReplaceInterface(in interface{}) string {
 	jsonStr, err := json.Marshal(in)
