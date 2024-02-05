@@ -45,7 +45,6 @@ func Error(c *gin.Context, err error) {
 		return
 	}
 	sc, scok := err.(interface {
-		ServiceName() string
 		StatusCode() int
 		Code() string
 		Message() string
@@ -53,9 +52,9 @@ func Error(c *gin.Context, err error) {
 	})
 	if !scok {
 		c.AbortWithStatusJSON(code.ErrCodeUnknown.StatusCode(), &Response{
-			Code:    fmt.Sprintf("%s.%3d%s", code.ErrCodeUnknown.ServiceName(), code.ErrCodeUnknown.StatusCode(), code.ErrCodeUnknown.Code()),
+			Code:    fmt.Sprintf("%3d%s", code.ErrCodeUnknown.StatusCode(), code.ErrCodeUnknown.Code()),
 			Message: code.ErrCodeUnknown.Message(),
-			Result:  fmt.Sprintf("%v %e", code.ErrCodeUnknown.Result(), err),
+			Result:  err.Error(),
 		})
 		return
 	}
@@ -67,7 +66,7 @@ func Error(c *gin.Context, err error) {
 	sn, snok := err.(interface {
 		ServiceName() string
 	})
-	if !snok {
+	if !snok || sn.ServiceName() == "" {
 		c.AbortWithStatusJSON(sc.StatusCode(), &Response{
 			Code:    fmt.Sprintf("%3d%s", sc.StatusCode(), sc.Code()),
 			Message: sc.Message(),
