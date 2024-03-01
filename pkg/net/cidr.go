@@ -54,6 +54,11 @@ func (c CIDR) Contains(ip string) bool {
 	return c.ipNet.Contains(net.ParseIP(ip))
 }
 
+func (c CIDR) ContainsCIDR(cidr CIDR) bool {
+	startIp, endIp := cidr.IPRange()
+	return c.Contains(startIp) && c.Contains(endIp)
+}
+
 // 根据子网掩码长度校准后的CIDR
 func (c CIDR) CIDR() string {
 	return c.ipNet.String()
