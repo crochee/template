@@ -75,6 +75,7 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 		return nil
 	}
 	result := make([]amqp.Publishing, 0, len(spans))
+	traceIDs := make([]string, 0, len(spans))
 	for i := range spans {
 		metadata := w.MetadataPool.Get()
 		events := spans[i].Events()
@@ -161,6 +162,7 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 			}
 		}
 		metadata.TraceID = "req-" + uuid.UUID(spans[i].SpanContext().TraceID()).String()
+		traceIDs = append(traceIDs, metadata.TraceID)
 		metadata.ServiceName = w.ServiceNameFunc()
 		metadata.SpanID = spans[i].SpanContext().SpanID().String()
 
@@ -180,9 +182,13 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 		}
 		result = append(result, msg)
 	}
+	if len(result) == 0 {
+		return nil
+	}
 	if err := w.GetPublisher().Publish(ctx, w.GetChannel(), w.Cfg.Exchange(), w.Cfg.RoutingKey(), result); err != nil {
 		w.From(ctx).Errorf("Publish failed,%+v", err)
 	}
+	w.From(ctx).Infof("trace_ids:%+v publish success", traceIDs)
 	return nil
 }
 
