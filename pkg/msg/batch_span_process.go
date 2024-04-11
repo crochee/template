@@ -112,6 +112,7 @@ func (bsp *BatchSpanProcessor) OnStart(parent context.Context, s sdktrace.ReadWr
 func (bsp *BatchSpanProcessor) OnEnd(s sdktrace.ReadOnlySpan) {
 	// Do not enqueue spans if we are just going to drop them.
 	if bsp.e == nil {
+		bsp.o.from(context.TODO()).Warnf("Do not enqueue spans if we are just going to drop them")
 		return
 	}
 	bsp.enqueueDrop(context.TODO(), s)
@@ -247,6 +248,7 @@ func (bsp *BatchSpanProcessor) processQueue() {
 	for {
 		select {
 		case <-bsp.stopCh:
+			bsp.o.from(ctx).Warnf("received stop ch")
 			return
 		case <-bsp.timer.C:
 			if err := bsp.exportSpans(ctx); err != nil {
@@ -282,6 +284,7 @@ func (bsp *BatchSpanProcessor) drainQueue() {
 		select {
 		case sd := <-bsp.queue:
 			if sd == nil {
+				bsp.o.from(ctx).Infof("received nil span, stopping queue")
 				if err := bsp.exportSpans(ctx); err != nil {
 					bsp.o.from(ctx).Errorf("failed to export spans: %v", err)
 				}
@@ -351,6 +354,7 @@ func (bsp *BatchSpanProcessor) enqueueDrop(ctx context.Context, sd sdktrace.Read
 
 	select {
 	case <-bsp.stopCh:
+		bsp.o.from(ctx).Warnf("received stop ch, not enqueueing span %+v", sd)
 		return false
 	default:
 	}

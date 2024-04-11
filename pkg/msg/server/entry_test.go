@@ -54,7 +54,7 @@ func TestError(t *testing.T) {
 			)),
 		sdktrace.WithIDGenerator(msg.DefaultIDGenerator(func(context.Context) string {
 			return uuid.NewV4().String()
-		})),
+		}, form)),
 	}
 	tp := sdktrace.NewTracerProvider(
 		tpOpts...,

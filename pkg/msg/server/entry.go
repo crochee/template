@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"runtime"
 	"sync"
 	"time"
 
@@ -31,23 +32,29 @@ var (
 )
 
 // New 更新全局参数
-func New(ctx context.Context, getTraceID func(context.Context) string, opts ...func(*msg.WriterOption)) {
+func New(ctx context.Context, getTraceID func(context.Context) string, form func(context.Context) gormx.Logger,
+	opts ...func(*msg.WriterOption)) {
 	exp = msg.NewWriter(opts...)
 
+	processorRWMutex.Lock()
 	processor = msg.NewBatchSpanProcessor(exp,
 		msg.WithLoggerFrom(func(context.Context) gormx.Logger {
-			return gormx.NewZapGormWriterFrom(ctx)
+			return form(ctx)
 		}),
 	)
+	processorRWMutex.Unlock()
 
 	tpOpts := []sdktrace.TracerProviderOption{
 		sdktrace.WithSpanProcessor(processor),
-		sdktrace.WithIDGenerator(msg.DefaultIDGenerator(getTraceID)),
+		sdktrace.WithIDGenerator(msg.DefaultIDGenerator(getTraceID, form)),
 	}
 	tp := sdktrace.NewTracerProvider(
 		tpOpts...,
 	)
 	otel.SetTracerProvider(tp)
+	runtime.SetFinalizer(tp, func(provider *sdktrace.TracerProvider) {
+		provider.Shutdown(context.Background())
+	})
 }
 
 // Error 写入错误
