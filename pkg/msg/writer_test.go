@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"template/pkg/logger/gormx"
 	"testing"
 	"time"
 
@@ -130,7 +131,7 @@ func TestS(t *testing.T) {
 	tp := sdktrace.NewTracerProvider(
 		sdktrace.WithIDGenerator(DefaultIDGenerator(func(ctx context.Context) string {
 			return uuid.NewV4().String()
-		})),
+		}, gormx.Nop)),
 		sdktrace.WithSyncer(exp),
 	)
 	otel.SetTracerProvider(tp)

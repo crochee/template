@@ -14,11 +14,12 @@ import (
 	"template/pkg/resp"
 )
 
-func RegisterAPI(router *gin.Engine, ctx context.Context, getTraceID func(context.Context) string) {
+func RegisterAPI(router *gin.Engine, ctx context.Context, getTraceID func(context.Context) string,
+	form func(context.Context) gormx.Logger) {
 	router.GET("/v1/produce/config", getProduceConfig)
 	router.PATCH("/v1/produce/config", updateProduceConfig)
 	router.GET("/v1/produce/processors", getProcessor)
-	router.PUT("/v1/produce/processors", putProcessor(ctx, getTraceID))
+	router.PUT("/v1/produce/processors", putProcessor(ctx, getTraceID, form))
 }
 
 // swagger:route GET /v1/produce/config 故障定位服务-内部运维使用 SwagNullRequest
@@ -94,7 +95,7 @@ func getProcessor(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-func putProcessor(ctx context.Context, getTraceID func(context.Context) string) func(c *gin.Context) {
+func putProcessor(ctx context.Context, getTraceID func(context.Context) string, from func(context.Context) gormx.Logger) func(c *gin.Context) {
 	return func(c *gin.Context) {
 		if exp == nil {
 			c.Status(http.StatusNoContent)
@@ -122,7 +123,7 @@ func putProcessor(ctx context.Context, getTraceID func(context.Context) string) 
 		)
 		tpOpts := []sdktrace.TracerProviderOption{
 			sdktrace.WithSpanProcessor(processor),
-			sdktrace.WithIDGenerator(msg.DefaultIDGenerator(getTraceID)),
+			sdktrace.WithIDGenerator(msg.DefaultIDGenerator(getTraceID, from)),
 		}
 		tp := sdktrace.NewTracerProvider(
 			tpOpts...,
