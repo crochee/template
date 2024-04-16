@@ -170,7 +170,6 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 			metadata.ParentSpanID = spans[i].Parent().SpanID().String()
 		}
 		data, err = w.JSONHandler.Marshal(metadata)
-		w.MetadataPool.Put(metadata)
 		if err != nil {
 			w.From(ctx).Errorf("Publish failed,%+v,trace_id:%s", err, metadata.TraceID)
 			continue
@@ -181,6 +180,7 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 			continue
 		}
 		result = append(result, msg)
+		w.MetadataPool.Put(metadata)
 	}
 	if len(result) == 0 {
 		return nil
