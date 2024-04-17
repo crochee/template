@@ -14,9 +14,9 @@ type MetadataPool interface {
 }
 
 type Metadata struct {
-	TraceID      string    `json:"trace_id" binding:"required"`
-	ServiceName  string    `json:"service_name" binding:"required"`
-	Locate       string    `json:"locate" binding:"required"`
+	TraceID      string    `json:"trace_id"       binding:"required"`
+	ServiceName  string    `json:"service_name"   binding:"required"`
+	Locate       string    `json:"locate"         binding:"required"`
 	SpanID       string    `json:"span_id"`
 	ParentSpanID string    `json:"parent_span_id"`
 	AccountID    string    `json:"account_id"`
@@ -25,9 +25,9 @@ type Metadata struct {
 	ResType      string    `json:"res_type"`
 	SubResID     string    `json:"sub_res_id"`
 	SubResType   string    `json:"sub_res_type"`
-	Summary      string    `json:"summary" binding:"required"`
+	Summary      string    `json:"summary"        binding:"required"`
 	Desc         string    `json:"desc"`
-	ErrorTime    time.Time `json:"error_time" binding:"required"`
+	ErrorTime    time.Time `json:"error_time"     binding:"required"`
 }
 
 func NewMetadataPool() MetadataPool {
@@ -75,6 +75,7 @@ var (
 	UserIDKey     = attribute.Key("UserID")
 	LocateKey     = attribute.Key("Locate")
 	MsgKey        = attribute.Key("msg")
+	KeepKey       = attribute.Key("keep")
 )
 
 var (

@@ -32,8 +32,12 @@ var (
 )
 
 // New 更新全局参数
-func New(ctx context.Context, getTraceID func(context.Context) string, form func(context.Context) gormx.Logger,
-	opts ...func(*msg.WriterOption)) {
+func New(
+	ctx context.Context,
+	getTraceID func(context.Context) string,
+	form func(context.Context) gormx.Logger,
+	opts ...func(*msg.WriterOption),
+) {
 	exp = msg.NewWriter(opts...)
 
 	processorRWMutex.Lock()
@@ -82,7 +86,13 @@ func ErrorWith(ctx context.Context, err error, detail string) {
 
 // Merge 根据trace_id为错误的消息增加一条数据,例如curl信息
 func Merge(ctx context.Context, info string) {
-	trace.SpanFromContext(ctx).AddEvent(msg.CurlEvent, trace.WithAttributes(msg.MsgKey.String(info)))
+	trace.SpanFromContext(ctx).
+		AddEvent(msg.CurlEvent, trace.WithAttributes(msg.MsgKey.String(info)))
+}
+
+// KeepRecord 标记该span作为父span时，若子节点有错误，其需要保留发送
+func KeepRecord(ctx context.Context) {
+	trace.SpanFromContext(ctx).SetAttributes(msg.KeepKey.Bool(true))
 }
 
 func Resource(ctx context.Context, resource, resourceType string, subRes ...string) {
