@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"gorm.io/gorm/utils"
 
 	"template/pkg/logger/gormx"
-	"template/pkg/msg"
 )
 
 func NewLog(
@@ -128,8 +128,7 @@ func (g *gormLog) Trace(
 				float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
 		}
 		g.writerFrom(ctx).Warnf(fmtSlowLog)
-		trace.SpanFromContext(ctx).
-			AddEvent(msg.SlowSQLEvent, trace.WithAttributes(msg.MsgKey.String(fmtSlowLog)))
+		trace.SpanFromContext(ctx).RecordError(errors.New(fmtSlowLog))
 
 	case g.LogLevel == logger.Info:
 		s, rows := fc()

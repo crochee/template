@@ -126,16 +126,6 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 						}
 					}
 				}
-			case SlowSQLEvent:
-				for _, tempAttr := range event.Attributes {
-					if tempAttr.Key == MsgKey {
-						oreqMap[tempAttr.Value.AsString()] = Event{
-							Name:  "slow_sql",
-							Value: tempAttr.Value.AsString(),
-							Time:  event.Time,
-						}
-					}
-				}
 			default:
 			}
 		}
