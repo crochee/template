@@ -79,6 +79,5 @@ var (
 )
 
 var (
-	CurlEvent    = "curl"
-	SlowSQLEvent = "slow_sql"
+	CurlEvent = "curl"
 )
