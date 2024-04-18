@@ -5,13 +5,18 @@ import (
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel/trace"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/utils"
 
 	"template/pkg/logger/gormx"
+	"template/pkg/msg"
 )
 
-func NewLog(writerFrom func(context.Context) gormx.Logger, opts ...func(*logger.Config)) logger.Interface {
+func NewLog(
+	writerFrom func(context.Context) gormx.Logger,
+	opts ...func(*logger.Config),
+) logger.Interface {
 	cfg := logger.Config{
 		SlowThreshold:             10 * time.Second,
 		LogLevel:                  logger.Info,
@@ -68,25 +73,33 @@ func (g *gormLog) LogMode(level logger.LogLevel) logger.Interface {
 
 func (g *gormLog) Info(ctx context.Context, msg string, data ...interface{}) {
 	if g.LogLevel >= logger.Info {
-		g.writerFrom(ctx).Infof(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
+		g.writerFrom(ctx).
+			Infof(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
 	}
 }
 
 func (g *gormLog) Warn(ctx context.Context, msg string, data ...interface{}) {
 	if g.LogLevel >= logger.Warn {
-		g.writerFrom(ctx).Warnf(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
+		g.writerFrom(ctx).
+			Warnf(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
 	}
 }
 
 func (g *gormLog) Error(ctx context.Context, msg string, data ...interface{}) {
 	if g.LogLevel >= logger.Error {
-		g.writerFrom(ctx).Errorf(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
+		g.writerFrom(ctx).
+			Errorf(g.infoStr+msg, append([]interface{}{utils.FileWithLineNum()}, data...)...)
 	}
 }
 
 const NanosecondPerMillisecond = 1e6
 
-func (g *gormLog) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
+func (g *gormLog) Trace(
+	ctx context.Context,
+	begin time.Time,
+	fc func() (string, int64),
+	err error,
+) {
 	if g.LogLevel <= logger.Silent {
 		return
 	}
@@ -106,15 +119,18 @@ func (g *gormLog) Trace(ctx context.Context, begin time.Time, fc func() (string,
 	case elapsed > g.SlowThreshold && g.SlowThreshold != 0 && g.LogLevel >= logger.Warn:
 		s, rows := fc()
 		slowLog := fmt.Sprintf("SLOW SQL >= %v", g.SlowThreshold)
+		var fmtSlowLog string
 		if rows == -1 {
-			g.writerFrom(ctx).
-				Warnf(g.traceWarnStr, utils.FileWithLineNum(), slowLog,
-					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
+			fmtSlowLog = fmt.Sprintf(g.traceWarnStr, utils.FileWithLineNum(), slowLog,
+				float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, "-", s)
 		} else {
-			g.writerFrom(ctx).
-				Warnf(g.traceWarnStr, utils.FileWithLineNum(), slowLog,
-					float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
+			fmtSlowLog = fmt.Sprintf(g.traceWarnStr, utils.FileWithLineNum(), slowLog,
+				float64(elapsed.Nanoseconds())/NanosecondPerMillisecond, rows, s)
 		}
+		g.writerFrom(ctx).Warnf(fmtSlowLog)
+		trace.SpanFromContext(ctx).
+			AddEvent(msg.SlowSQLEvent, trace.WithAttributes(msg.MsgKey.String(fmtSlowLog)))
+
 	case g.LogLevel == logger.Info:
 		s, rows := fc()
 		if rows == -1 {
