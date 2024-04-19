@@ -130,16 +130,20 @@ func NewRWMutex(key string, opts ...Option) *RWMutex {
 }
 
 func (r RWMutex) Lock() error {
-	// 单位：ms
-	expiration := int64(r.expiration / time.Millisecond)
-
 	ctx, cancel := context.WithTimeout(context.Background(), r.waitTimeout)
 	defer cancel()
-
-	clientID := r.clientIDPrefix + ":" + goroutineNum()
-	ch := make(chan result)
-	var once sync.Once
-	err := r.tryLock(ctx, &once, ch, clientID, expiration)
+	var (
+		// 单位：ms
+		expiration = int64(r.expiration / time.Millisecond)
+		clientID   = r.clientIDPrefix + ":" + goroutineNum()
+		ch         = make(chan result)
+		once       sync.Once
+		breakLoop  bool
+		err        error
+	)
+	for !breakLoop {
+		breakLoop, err = r.tryLockLoop(ctx, &once, ch, clientID, expiration, r.lock)
+	}
 	if err != nil {
 		return err
 	}
@@ -155,17 +159,24 @@ func (r RWMutex) Lock() error {
 			}
 		}
 	}()
-
 	return nil
 }
 
-func (r RWMutex) tryLock(ctx context.Context, once *sync.Once, ch chan result, clientID string, expiration int64) error {
-	pTTL, err := r.lock(clientID, expiration)
-	if err != nil {
-		return err
+func (r RWMutex) tryLockLoop(
+	ctx context.Context,
+	once *sync.Once,
+	ch chan result,
+	clientID string,
+	expiration int64,
+	lockFunc func(clientID string, expiration int64) (int64, error),
+) (breakLoop bool, err error) {
+	var pTTL int64
+	if pTTL, err = lockFunc(clientID, expiration); err != nil {
+		return
 	}
 	if pTTL == 0 {
-		return nil
+		breakLoop = true
+		return
 	}
 	once.Do(func() {
 		go func() {
@@ -173,19 +184,23 @@ func (r RWMutex) tryLock(ctx context.Context, once *sync.Once, ch chan result, c
 			ch <- result{val: msg, err: err}
 		}()
 	})
+	t := time.NewTimer(time.Duration(pTTL) * time.Millisecond)
+	defer t.Stop()
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(time.Duration(pTTL) * time.Millisecond):
+		breakLoop = true
+		err = ctx.Err()
+	case <-t.C:
 		// 针对“redis 中存在未维护的锁”，即当锁自然过期后，并不会发布通知的锁
-		return r.tryLock(ctx, once, ch, clientID, expiration)
 	case value := <-ch:
 		if value.err != nil {
-			return value.err
+			breakLoop = true
+			err = value.err
+			return
 		}
 		// 收到解锁通知，则尝试抢锁
-		return r.tryLock(ctx, once, ch, clientID, expiration)
 	}
+	return
 }
 
 func (r RWMutex) lock(clientID string, expiration int64) (int64, error) {
@@ -203,16 +218,21 @@ func (r RWMutex) lock(clientID string, expiration int64) (int64, error) {
 }
 
 func (r RWMutex) RLock() error {
-	// 单位：ms
-	expiration := int64(r.expiration / time.Millisecond)
-
 	ctx, cancel := context.WithTimeout(context.Background(), r.waitTimeout)
 	defer cancel()
 
-	clientID := r.clientIDPrefix + ":" + goroutineNum()
-	ch := make(chan result)
-	var once sync.Once
-	err := r.tryRLock(ctx, &once, ch, clientID, expiration)
+	var (
+		// 单位：ms
+		expiration = int64(r.expiration / time.Millisecond)
+		clientID   = r.clientIDPrefix + ":" + goroutineNum()
+		ch         = make(chan result)
+		once       sync.Once
+		breakLoop  bool
+		err        error
+	)
+	for !breakLoop {
+		breakLoop, err = r.tryLockLoop(ctx, &once, ch, clientID, expiration, r.rLock)
+	}
 	if err != nil {
 		return err
 	}
@@ -229,36 +249,6 @@ func (r RWMutex) RLock() error {
 		}
 	}()
 	return nil
-}
-
-func (r RWMutex) tryRLock(ctx context.Context, once *sync.Once, ch chan result, clientID string, expiration int64) error {
-	pTTL, err := r.rLock(clientID, expiration)
-	if err != nil {
-		return err
-	}
-	if pTTL == 0 {
-		return nil
-	}
-	once.Do(func() {
-		go func() {
-			msg, err := r.pubSub.ReceiveMessage(ctx)
-			ch <- result{val: msg, err: err}
-		}()
-	})
-
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-time.After(time.Duration(pTTL) * time.Millisecond):
-		// 针对“redis 中存在未维护的锁”，即当锁自然过期后，并不会发布通知的锁
-		return r.tryRLock(ctx, once, ch, clientID, expiration)
-	case value := <-ch:
-		if value.err != nil {
-			return value.err
-		}
-		// 收到解锁通知，则尝试抢锁
-		return r.tryRLock(ctx, once, ch, clientID, expiration)
-	}
 }
 
 func (r RWMutex) rLock(clientID string, expiration int64) (int64, error) {
