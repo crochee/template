@@ -2,6 +2,7 @@ package syncx
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"runtime"
 	"sync"
@@ -86,16 +87,20 @@ func NewMutex(key string, opts ...Option) *Mutex {
 }
 
 func (m *Mutex) Lock() error {
-	// 单位：ms
-	expiration := int64(m.expiration / time.Millisecond)
-
 	ctx, cancel := context.WithTimeout(context.Background(), m.waitTimeout)
 	defer cancel()
-
-	clientID := m.clientIDPrefix + ":" + goroutineNum()
-	ch := make(chan result)
-	var once sync.Once
-	err := m.tryLock(ctx, &once, ch, clientID, expiration)
+	var (
+		// 单位：ms
+		expiration = int64(m.expiration / time.Millisecond)
+		clientID   = m.clientIDPrefix + ":" + goroutineNum()
+		ch         = make(chan result)
+		once       sync.Once
+		breakLoop  bool
+		err        error
+	)
+	for !breakLoop {
+		breakLoop, err = m.tryLockLoop(ctx, &once, ch, clientID, expiration, m.lock)
+	}
 	if err != nil {
 		return err
 	}
@@ -104,7 +109,8 @@ func (m *Mutex) Lock() error {
 		ticker := time.NewTicker(m.expiration / 3)
 		defer ticker.Stop()
 		for range ticker.C {
-			res, err := m.client.Eval(context.Background(), m.renewalScript, []string{m.key}, expiration, clientID).Int64()
+			res, err := m.client.Eval(context.Background(), m.renewalScript, []string{m.key}, expiration, clientID).
+				Int64()
 			if err != nil || res == 0 {
 				return
 			}
@@ -121,14 +127,21 @@ type result struct {
 // ErrNotObtained is returned when a lock cannot be obtained.
 var ErrNotObtained = errors.New("redislock: not obtained")
 
-func (m Mutex) tryLock(ctx context.Context, once *sync.Once, ch chan result, clientID string, expiration int64) error {
+func (m Mutex) tryLockLoop(ctx context.Context,
+	once *sync.Once,
+	ch chan result,
+	clientID string,
+	expiration int64,
+	lockFunc func(clientID string, expiration int64) (int64, error),
+) (breakLoop bool, err error) {
 	// 尝试加锁
-	pTTL, err := m.lock(clientID, expiration)
-	if err != nil {
-		return err
+	var pTTL int64
+	if pTTL, err = m.lock(clientID, expiration); err != nil {
+		return
 	}
 	if pTTL == 0 {
-		return nil
+		breakLoop = true
+		return
 	}
 	once.Do(func() {
 		go func() {
@@ -136,20 +149,24 @@ func (m Mutex) tryLock(ctx context.Context, once *sync.Once, ch chan result, cli
 			ch <- result{val: msg, err: err}
 		}()
 	})
+	t := time.NewTimer(time.Duration(pTTL) * time.Millisecond)
+	defer t.Stop()
 	select {
 	case <-ctx.Done():
 		// 申请锁的耗时如果大于等于最大等待时间，则申请锁失败.
-		return ctx.Err()
-	case <-time.After(time.Duration(pTTL) * time.Millisecond):
+		breakLoop = true
+		err = ctx.Err()
+	case <-t.C:
 		// 针对“redis 中存在未维护的锁”，即当锁自然过期后，并不会发布通知的锁
-		return m.tryLock(ctx, once, ch, clientID, expiration)
 	case value := <-ch:
 		if value.err != nil {
-			return value.err
+			breakLoop = true
+			err = value.err
+			return
 		}
 		// 收到解锁通知，则尝试抢锁
-		return m.tryLock(ctx, once, ch, clientID, expiration)
 	}
+	return
 }
 
 func (m Mutex) TryLock() error {
@@ -163,7 +180,7 @@ func (m Mutex) TryLock() error {
 		return err
 	}
 	if pTTL != 0 {
-		return errors.Errorf("key %s already locked, please try again after %d ms,%w",
+		return fmt.Errorf("key %s already locked, please try again after %d ms,%w",
 			m.key, pTTL, ErrNotObtained)
 	}
 	// 加锁成功，开个协程，定时续锁
@@ -171,7 +188,8 @@ func (m Mutex) TryLock() error {
 		ticker := time.NewTicker(m.expiration / 3)
 		defer ticker.Stop()
 		for range ticker.C {
-			res, err := m.client.Eval(context.Background(), m.renewalScript, []string{m.key}, expiration, clientID).Int64()
+			res, err := m.client.Eval(context.Background(), m.renewalScript, []string{m.key}, expiration, clientID).
+				Int64()
 			if err != nil || res == 0 {
 				return
 			}
@@ -181,7 +199,8 @@ func (m Mutex) TryLock() error {
 }
 
 func (m Mutex) lock(clientID string, expiration int64) (int64, error) {
-	pTTL, err := m.client.Eval(context.Background(), m.lockScript, []string{m.key}, clientID, expiration).Result()
+	pTTL, err := m.client.Eval(context.Background(), m.lockScript, []string{m.key}, clientID, expiration).
+		Result()
 	if err == redis.Nil {
 		return 0, nil
 	}
@@ -193,7 +212,8 @@ func (m Mutex) lock(clientID string, expiration int64) (int64, error) {
 
 func (m Mutex) Unlock() error {
 	clientID := m.clientIDPrefix + ":" + goroutineNum()
-	res, err := m.client.Eval(context.Background(), m.unlockScript, []string{m.key, channelName(m.key)}, clientID, 1).Int64()
+	res, err := m.client.Eval(context.Background(), m.unlockScript, []string{m.key, channelName(m.key)}, clientID, 1).
+		Int64()
 	if err != nil {
 		return errors.WithStack(err)
 	}
