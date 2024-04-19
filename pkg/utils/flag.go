@@ -1,5 +1,4 @@
-// Package msg
-package msg
+package utils
 
 // Status 存储目前的状态
 type Status struct {
@@ -35,8 +34,3 @@ func (s *Status) NotHasStatus(status int) bool {
 func (s *Status) OnlyHas(status int) bool {
 	return s.Flag == status
 }
-
-const (
-	Exit = 1 << iota
-	ResetTime
-)
