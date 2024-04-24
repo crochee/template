@@ -3,7 +3,6 @@ package syncx
 import (
 	"context"
 	"log"
-	"runtime"
 	"sync"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 )
 
 type RWMutex struct {
-	pubSub *redis.PubSub
+	client *redis.ClusterClient
 
 	lockScript    string
 	rLockScript   string
@@ -25,7 +24,7 @@ type RWMutex struct {
 	option
 }
 
-func NewRWMutex(key string, opts ...Option) *RWMutex {
+func NewRWMutex(key string, client *redis.ClusterClient, opts ...Option) *RWMutex {
 	o := option{
 		expiration:     10 * time.Second,
 		waitTimeout:    30 * time.Second,
@@ -36,10 +35,10 @@ func NewRWMutex(key string, opts ...Option) *RWMutex {
 	}
 
 	m := &RWMutex{
-		pubSub: &redis.PubSub{},
+		client: client,
 		lockScript: `
 	-- KEYS[1] 锁名
-	-- ARGV[1] 协程唯一标识：客户端标识+协程ID
+	-- ARGV[1] 协程唯一标识：客户端标识
 	-- ARGV[2] 过期时间
 	if redis.call('exists',KEYS[1]) == 0 then
 		redis.call('set',KEYS[1],ARGV[1])
@@ -50,7 +49,7 @@ func NewRWMutex(key string, opts ...Option) *RWMutex {
 `,
 		rLockScript: `
 	-- KEYS[1] 锁名
-	-- ARGV[1] 协程唯一标识：客户端标识+协程ID
+	-- ARGV[1] 协程唯一标识：客户端标识
 	-- ARGV[2] 过期时间
 	local t = redis.call('type',KEYS[1])["ok"]
 	if t == "string" then
@@ -83,22 +82,23 @@ func NewRWMutex(key string, opts ...Option) *RWMutex {
 		unlockScript: `
 	-- KEYS[1] 锁名
 	-- KEYS[2] 发布订阅的channel
-	-- ARGV[1] 协程唯一标识：客户端标识+协程ID
+	-- ARGV[1] 协程唯一标识：客户端标识
 	-- ARGV[2] 解锁时发布的消息
 	local t = redis.call('type',KEYS[1])["ok"]
 	if  t == "hash" then
 		if redis.call('hexists',KEYS[1],ARGV[1]) == 0 then
 			return 0
 		end
-		if redis.call('hincrby',KEYS[1],ARGV[1],-1) == 0 then
+		if redis.call('hincrby',KEYS[1],ARGV[1],-1) <= 0 then
 			redis.call('hdel',KEYS[1],ARGV[1])
 			if (redis.call('hlen',KEYS[1]) > 0 )then
 				return 2
 			end
 			redis.call('del',KEYS[1])
-			return redis.call('publish',KEYS[2],ARGV[2])
+			redis.call('publish',KEYS[2],ARGV[2])
+            return 1
 		else
-			return 1
+			return 2
 		end
 	elseif t == "none" then
 			redis.call('publish',KEYS[2],ARGV[2])
@@ -106,7 +106,8 @@ func NewRWMutex(key string, opts ...Option) *RWMutex {
     elseif t == "string" then
         if redis.call('get',KEYS[1]) == ARGV[1] then
 			redis.call('del',KEYS[1])
-			return redis.call('publish',KEYS[2],ARGV[2])
+			redis.call('publish',KEYS[2],ARGV[2])
+            return 1
         end
         return 0
 	else
@@ -116,16 +117,6 @@ func NewRWMutex(key string, opts ...Option) *RWMutex {
 		key:    key,
 		option: o,
 	}
-	m.pubSub = m.client.Subscribe(context.Background(), channelName(m.key))
-
-	runtime.SetFinalizer(m, func(m *RWMutex) {
-		if err := m.pubSub.Unsubscribe(context.Background(), channelName(m.key)); err != nil {
-			log.Println(err)
-		}
-		if err := m.pubSub.Close(); err != nil {
-			log.Println(err)
-		}
-	})
 	return m
 }
 
@@ -134,16 +125,26 @@ func (r RWMutex) Lock() error {
 	defer cancel()
 	var (
 		// 单位：ms
-		expiration = int64(r.expiration / time.Millisecond)
-		clientID   = r.clientIDPrefix + ":" + goroutineNum()
-		ch         = make(chan result)
-		once       sync.Once
-		breakLoop  bool
-		err        error
+		expiration    = int64(r.expiration / time.Millisecond)
+		clientID      = r.clientIDPrefix
+		receivePubSub = make(chan struct{})
+		releasePubSub = make(chan struct{})
+		once          sync.Once
+		breakLoop     bool
+		err           error
 	)
 	for !breakLoop {
-		breakLoop, err = r.tryLockLoop(ctx, &once, ch, clientID, expiration, r.lock)
+		breakLoop, err = r.tryLockLoop(
+			ctx,
+			&once,
+			receivePubSub,
+			releasePubSub,
+			clientID,
+			expiration,
+			r.lock,
+		)
 	}
+	close(releasePubSub)
 	if err != nil {
 		return err
 	}
@@ -165,7 +166,8 @@ func (r RWMutex) Lock() error {
 func (r RWMutex) tryLockLoop(
 	ctx context.Context,
 	once *sync.Once,
-	ch chan result,
+	receivePubSub chan struct{},
+	releasePubSub chan struct{},
 	clientID string,
 	expiration int64,
 	lockFunc func(clientID string, expiration int64) (int64, error),
@@ -180,8 +182,20 @@ func (r RWMutex) tryLockLoop(
 	}
 	once.Do(func() {
 		go func() {
-			msg, err := r.pubSub.ReceiveMessage(ctx)
-			ch <- result{val: msg, err: err}
+			// 开启订阅模式
+			pubSub := r.client.Subscribe(ctx, channelName(r.key))
+			for {
+				select {
+				case <-releasePubSub:
+					// 读取完后关闭订阅模式
+					if err := pubSub.Close(); err != nil {
+						log.Println(err)
+					}
+					return
+				case <-pubSub.Channel():
+					receivePubSub <- struct{}{}
+				}
+			}
 		}()
 	})
 	t := time.NewTimer(time.Duration(pTTL) * time.Millisecond)
@@ -192,12 +206,7 @@ func (r RWMutex) tryLockLoop(
 		err = ctx.Err()
 	case <-t.C:
 		// 针对“redis 中存在未维护的锁”，即当锁自然过期后，并不会发布通知的锁
-	case value := <-ch:
-		if value.err != nil {
-			breakLoop = true
-			err = value.err
-			return
-		}
+	case <-receivePubSub:
 		// 收到解锁通知，则尝试抢锁
 	}
 	return
@@ -223,16 +232,26 @@ func (r RWMutex) RLock() error {
 
 	var (
 		// 单位：ms
-		expiration = int64(r.expiration / time.Millisecond)
-		clientID   = r.clientIDPrefix + ":" + goroutineNum()
-		ch         = make(chan result)
-		once       sync.Once
-		breakLoop  bool
-		err        error
+		expiration    = int64(r.expiration / time.Millisecond)
+		clientID      = r.clientIDPrefix
+		receivePubSub = make(chan struct{})
+		releasePubSub = make(chan struct{})
+		once          sync.Once
+		breakLoop     bool
+		err           error
 	)
 	for !breakLoop {
-		breakLoop, err = r.tryLockLoop(ctx, &once, ch, clientID, expiration, r.rLock)
+		breakLoop, err = r.tryLockLoop(
+			ctx,
+			&once,
+			receivePubSub,
+			releasePubSub,
+			clientID,
+			expiration,
+			r.rLock,
+		)
 	}
+	close(releasePubSub)
 	if err != nil {
 		return err
 	}
@@ -266,7 +285,7 @@ func (r RWMutex) rLock(clientID string, expiration int64) (int64, error) {
 }
 
 func (r RWMutex) Unlock() error {
-	clientID := r.clientIDPrefix + ":" + goroutineNum()
+	clientID := r.clientIDPrefix
 	res, err := r.client.Eval(context.Background(), r.unlockScript,
 		[]string{r.key, channelName(r.key)}, clientID, 1).Int64()
 	if err != nil {

@@ -25,7 +25,7 @@ func TestMutex_Lock(t *testing.T) {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, index int) {
 			defer wg.Done()
-			mutex := NewMutex("gs2g", WithClient(client))
+			mutex := NewMutex("gs2g", client)
 			if err := mutex.Lock(); err != nil {
 				t.Log(err)
 				return

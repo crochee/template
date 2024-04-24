@@ -1,11 +1,14 @@
-// Package msg
-package msg
+package utils
 
 import (
 	"testing"
 )
 
 func TestName(t *testing.T) {
+	const (
+		Exit = 1 << iota
+		ResetTime
+	)
 	t.Log(Exit, ResetTime)
 	c := &Status{}
 	c.SetStatus(Exit)

@@ -25,7 +25,7 @@ func TestNewRWMutex(t *testing.T) {
 		wg.Add(1)
 		go func(wg *sync.WaitGroup, index int) {
 			defer wg.Done()
-			mutex := NewRWMutex("g23", WithClient(client), WithWaitTimeout(30*time.Minute))
+			mutex := NewRWMutex("g23", client, WithWaitTimeout(30*time.Minute))
 			if err := mutex.Lock(); err != nil {
 				t.Log(err)
 				return

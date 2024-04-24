@@ -17,6 +17,7 @@ import (
 	"template/pkg/async"
 	"template/pkg/logger/gormx"
 	"template/pkg/msg"
+	"template/pkg/utils"
 )
 
 // Automatically set GOMAXPROCS to match Linux container CPU quota.
@@ -198,8 +199,8 @@ type mqConfigStatus struct {
 	topic      string
 }
 
-func configChange(param *ConfigParam) (*mqConfigStatus, *msg.Status) {
-	flag := &msg.Status{}
+func configChange(param *ConfigParam) (*mqConfigStatus, *utils.Status) {
+	flag := &utils.Status{}
 	temp := &mqConfigStatus{}
 
 	if uri := exp.Cfg.URI(); param.URI != "" {
