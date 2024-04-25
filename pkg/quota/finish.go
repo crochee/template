@@ -279,7 +279,7 @@ func (re *redisFinishQuota) evauate(ctx context.Context) (err error) {
 	if err = re.lock.Lock(); err != nil {
 		return
 	}
-	re.state.SetStatus(stateEvauate)
+	re.state.AddStatus(stateEvauate)
 	defer func() {
 		if panicked || err != nil {
 			re.lock.Unlock()
