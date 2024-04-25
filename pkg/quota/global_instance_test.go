@@ -26,9 +26,6 @@ func TestPrepareOccupying(t *testing.T) {
 	})
 	defer redisClient.Close()
 	InitResourceQuotaManager(
-		0,
-		0,
-		nil,
 		WithUsedQuotaHandler("CPUA", &mockHandler{Used: 1, Quota: 4}),
 		WithUsedQuotaHandler("CPUB", &mockHandler{Used: 2, Quota: 4}),
 		WithUsedQuotaHandler("CPUC", &mockHandler{Used: 3, Quota: 4}),
