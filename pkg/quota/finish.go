@@ -31,6 +31,8 @@ const (
 )
 
 type FinishQuota interface {
+	// 同步数据
+	sync(ctx context.Context) error
 	// 评估配额的过程
 	evauate(ctx context.Context) error
 	Finally(ctx context.Context) error
@@ -52,6 +54,10 @@ type noneCacheFinishQuotaFinisher struct {
 	state   *utils.Status
 	param   *Param
 	handler UsedQuotaHandler
+}
+
+func (no *noneCacheFinishQuotaFinisher) sync(ctx context.Context) (err error) {
+	return
 }
 
 func (no *noneCacheFinishQuotaFinisher) evauate(ctx context.Context) (err error) {
@@ -127,6 +133,14 @@ func (no *noneCacheFinishQuotaFinisher) Rollback(ctx context.Context) error {
 
 type Finishers []FinishQuota
 
+func (fi Finishers) sync(ctx context.Context) error {
+	var err error
+	for i := len(fi) - 1; i >= 0; i-- {
+		err = multierr.Append(err, fi[i].sync(ctx))
+	}
+	return err
+}
+
 func (fi Finishers) evauate(ctx context.Context) error {
 	readyFinishers := make(Finishers, 0, len(fi))
 	for _, finisher := range fi {
@@ -159,6 +173,10 @@ func CreateDefaultFinishQuota() FinishQuota {
 }
 
 type noopFinishQuota struct {
+}
+
+func (no noopFinishQuota) sync(ctx context.Context) error {
+	return nil
 }
 
 // 评估配额的过程
@@ -238,7 +256,7 @@ func (re *redisFinishQuota) resourceKey(param *Param) string {
 	return fmt.Sprintf("dcs:resource:{%s}:%s", param.AssociatedID, param.Name)
 }
 
-func (re *redisFinishQuota) handleInvalid(ctx context.Context) error {
+func (re *redisFinishQuota) sync(ctx context.Context) error {
 	// 修正错误数据
 	used, err := re.handler.QueryUsed(ctx, re.param.AssociatedID)
 	if err != nil {
@@ -274,7 +292,7 @@ func (re *redisFinishQuota) evauate(ctx context.Context) (err error) {
 	}
 	// 尝试预占配额
 	var retry bool
-	if retry, err = re.preHandle(ctx, quota, re.handleInvalid); err != nil {
+	if retry, err = re.preHandle(ctx, quota, re.sync); err != nil {
 		panicked = false
 		return
 	}
@@ -373,7 +391,7 @@ func (re *redisFinishQuota) Rollback(ctx context.Context) (err error) {
 			),
 		)
 	case "Invalid":
-		err = re.handleInvalid(ctx)
+		err = re.sync(ctx)
 	case "OK":
 	}
 	return
