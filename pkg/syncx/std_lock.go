@@ -1,6 +1,10 @@
 package syncx
 
-import "sync"
+import (
+	"sync"
+
+	"github.com/pkg/errors"
+)
 
 func NewStdMutex() *stdMutex {
 	return &stdMutex{
@@ -15,6 +19,10 @@ type stdMutex struct {
 func (st *stdMutex) Lock() error {
 	st.mutex.Lock()
 	return nil
+}
+
+func (st *stdMutex) TryLock() error {
+	return errors.New("not support")
 }
 
 func (st *stdMutex) Unlock() error {

@@ -2,6 +2,7 @@ package syncx
 
 type Locker interface {
 	Lock() error
+	TryLock() error
 	Unlock() error
 }
 

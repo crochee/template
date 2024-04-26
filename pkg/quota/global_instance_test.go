@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"template/pkg/syncx"
+	"template/pkg/utils"
 )
 
 func TestPrepareOccupying(t *testing.T) {
@@ -36,13 +37,14 @@ func TestPrepareOccupying(t *testing.T) {
 			return syncx.NewMutex(key, redisClient)
 		}),
 		WithFinisherFn(
-			func(handler UsedQuotaHandler, param *Param, lock syncx.Locker) (FinishQuota, error) {
+			func(handler UsedQuotaHandler, param *Param, lock syncx.Locker, state *utils.Status) (FinishQuota, error) {
 				return NewRedisFinishQuota(
 					handler,
 					param,
 					lock,
 					redisClient,
 					3*time.Second,
+					state,
 				), nil
 			},
 		),
