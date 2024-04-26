@@ -39,11 +39,15 @@ type FinishQuota interface {
 	Rollback(ctx context.Context) error
 }
 
-func NewFinisherFn(handler UsedQuotaHandler, param *Param,
-	lock syncx.Locker) (FinishQuota, error) {
+func NewFinisherFn(
+	handler UsedQuotaHandler,
+	param *Param,
+	lock syncx.Locker,
+	state *utils.Status,
+) (FinishQuota, error) {
 	return &noneCacheFinishQuotaFinisher{
 		lock:    lock,
-		state:   &utils.Status{},
+		state:   state,
 		param:   param,
 		handler: handler,
 	}, nil
@@ -198,10 +202,11 @@ func NewRedisFinishQuota(
 	lock syncx.Locker,
 	cli *redis.ClusterClient,
 	expire time.Duration,
+	state *utils.Status,
 ) FinishQuota {
 	return &redisFinishQuota{
 		lock:    lock,
-		state:   &utils.Status{},
+		state:   state,
 		param:   param,
 		handler: handler,
 		cli:     cli,

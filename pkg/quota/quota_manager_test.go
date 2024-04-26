@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"template/pkg/syncx"
+	"template/pkg/utils"
 )
 
 type mockHandler struct {
@@ -132,13 +133,14 @@ func BenchmarkTransaction(b *testing.B) {
 			return syncx.NewMutex(key, redisClient)
 		}),
 		WithFinisherFn(
-			func(handler UsedQuotaHandler, param *Param, lock syncx.Locker) (FinishQuota, error) {
+			func(handler UsedQuotaHandler, param *Param, lock syncx.Locker, state *utils.Status) (FinishQuota, error) {
 				return NewRedisFinishQuota(
 					handler,
 					param,
 					lock,
 					redisClient,
 					time.Hour,
+					state,
 				), nil
 			},
 		),

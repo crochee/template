@@ -7,6 +7,7 @@ import (
 	"go.uber.org/multierr"
 
 	"template/pkg/syncx"
+	"template/pkg/utils"
 )
 
 type Param struct {
@@ -28,18 +29,23 @@ type PrepareOccupyingQuota interface {
 type resourceQuotaManager struct {
 	getAccountFn  func(context.Context) string
 	handlers      map[string]UsedQuotaHandler
-	finisherFn    func(UsedQuotaHandler, *Param, syncx.Locker) (FinishQuota, error)
+	finisherFn    func(UsedQuotaHandler, *Param, syncx.Locker, *utils.Status) (FinishQuota, error)
 	lockFn        func(string) syncx.Locker
 	isQuotaEnable func(accounts ...string) (bool, error)
 	keyFn         func(*Param) string
 }
 
-func (no *resourceQuotaManager) getFinisher(
+type paramWithStatus struct {
+	*Param
+	*utils.Status
+}
+
+func (no *resourceQuotaManager) getFinisherWithStatus(
 	ctx context.Context,
-	params []*Param,
+	params []*paramWithStatus,
 ) (FinishQuota, error) {
 	// 合并参数
-	paramMaps := make(map[string]*Param)
+	paramMaps := make(map[string]*paramWithStatus)
 	for _, param := range params {
 		key := param.Name + param.AssociatedID
 		if v, ok := paramMaps[key]; ok {
@@ -67,13 +73,32 @@ func (no *resourceQuotaManager) getFinisher(
 		if !ok {
 			return nil, fmt.Errorf("handler not found: %s", param.Name)
 		}
-		finisher, err := no.finisherFn(handler, param, no.lockFn(no.keyFn(param)))
+		finisher, err := no.finisherFn(
+			handler,
+			param.Param,
+			no.lockFn(no.keyFn(param.Param)),
+			param.Status,
+		)
 		if err != nil {
 			return nil, err
 		}
 		finishers = append(finishers, finisher)
 	}
 	return finishers, nil
+}
+
+func (no *resourceQuotaManager) getFinisher(
+	ctx context.Context,
+	params []*Param,
+) (FinishQuota, error) {
+	list := make([]*paramWithStatus, 0, len(params))
+	for _, param := range params {
+		list = append(list, &paramWithStatus{
+			Param:  param,
+			Status: &utils.Status{},
+		})
+	}
+	return no.getFinisherWithStatus(ctx, list)
 }
 
 func (no *resourceQuotaManager) Transaction(
@@ -133,7 +158,7 @@ func WithLockFn(lockFn func(string) syncx.Locker) option {
 }
 
 func WithFinisherFn(
-	finisherFn func(UsedQuotaHandler, *Param, syncx.Locker) (FinishQuota, error),
+	finisherFn func(UsedQuotaHandler, *Param, syncx.Locker, *utils.Status) (FinishQuota, error),
 ) option {
 	return func(r *resourceQuotaManager) {
 		r.finisherFn = finisherFn
