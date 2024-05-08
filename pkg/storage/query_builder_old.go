@@ -170,7 +170,7 @@ type PrimarySearch struct {
 
 func (p *PrimarySearch) Build(_ context.Context, query *gorm.DB, _ ...SQLOption) *gorm.DB {
 	if p.SearchByID != "" {
-		query = query.Where("id like ?", fmt.Sprintf("%%%s%%", EscapeQueryString(p.SearchByID)))
+		query = query.Where("id = ?", p.SearchByID)
 	}
 	if p.SearchByName != "" {
 		query = query.Where("name like ?", fmt.Sprintf("%%%s%%", EscapeQueryString(p.SearchByName)))
