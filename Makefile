@@ -61,3 +61,7 @@ clean:
 .PHONY: stage
 stage:
 	@chmod +x ./scripts/stage.sh && ./scripts/stage.sh $(commit)
+
+.PHONY: generate
+generate:
+	@go generate ./...

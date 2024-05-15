@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 
 	"template/internal/store"
@@ -25,7 +26,8 @@ func NewMysqlClient(ctx context.Context) (*dataStore, error) {
 		storage.WithMaxLifetime(time.Duration(viper.GetInt("mysql.conn_max_lifetime"))*time.Second),
 		storage.WithLogger(storage.NewLog(gormx.NewZapGormWriterFrom)),
 		storage.WithPlugins(
-			storage.IgnoreSelectLogger{},
+			// 注入忽略select语句的日志
+			storage.NewIgnoreSelectLogger(viper.GetString("mode") != gin.ReleaseMode),
 		))
 	if err != nil {
 		return nil, err
