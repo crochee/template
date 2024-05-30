@@ -28,13 +28,10 @@ var (
 	getTraceID    func(ctx context.Context) string
 )
 
-func RegisterDB(ctx context.Context, f ClientFunc, getTraceIDFunc func(ctx context.Context) string) error {
+func InitTaskLogDBClient(ctx context.Context, f ClientFunc, getTraceIDFunc func(ctx context.Context) string) {
 	getTraceID = getTraceIDFunc
 	db := f(ctx)
 	taskLogStore = store.NewTaskLogStore(db)
-	return db.Set("gorm:table_options",
-		"ENGINE=InnoDB COMMENT='任务执行日志记录数据表' DEFAULT CHARSET='utf8mb4'").
-		AutoMigrate(&model.TaskLog{})
 }
 
 func RegisterAPI(router *gin.Engine) {
