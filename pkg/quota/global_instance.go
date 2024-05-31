@@ -59,15 +59,6 @@ func Mgr() *resourceQuotaManager {
 // Rollback 单独的 错误结束回调操作的功能，适用于  异步操作后资源创建失败，回滚配额
 func Rollback(ctx context.Context, account string, requirement map[string]uint,
 	_ time.Time) error {
-	return rollback(ctx, account, requirement)
-}
-
-// CleanUsed 删除配额使用量，适用于资源删除时，对资源使用量进行扣减
-func CleanUsed(ctx context.Context, account string, requirement map[string]uint) error {
-	return rollback(ctx, account, requirement)
-}
-
-func rollback(ctx context.Context, account string, requirement map[string]uint) error {
 	// 处理入参
 	params := make([]*paramWithStatus, 0, len(requirement))
 	for resource, num := range requirement {
@@ -82,6 +73,27 @@ func rollback(ctx context.Context, account string, requirement map[string]uint) 
 				AssociatedID: account,
 				Name:         resource,
 				Num:          uint64(num),
+			},
+			Status: status,
+		})
+	}
+	finisher, err := Mgr().getFinisherWithStatus(ctx, params)
+	if err != nil {
+		return err
+	}
+	return finisher.Rollback(ctx)
+}
+
+// CleanUsed 删除配额使用量，适用于资源删除时，对资源使用量进行扣减
+func CleanUsed(ctx context.Context, account string, requirement map[string]uint) error {
+	// 处理入参
+	params := make([]*paramWithStatus, 0, len(requirement))
+	for resource := range requirement {
+		status := &utils.Status{}
+		params = append(params, &paramWithStatus{
+			Param: &Param{
+				AssociatedID: account,
+				Name:         resource,
 			},
 			Status: status,
 		})
