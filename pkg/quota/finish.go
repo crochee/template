@@ -370,6 +370,13 @@ func (re *redisFinishQuota) Rollback(ctx context.Context) (err error) {
 		if err = re.lock.Lock(); err != nil {
 			return
 		}
+		defer func() {
+			re.lock.Unlock()
+		}()
+		// 删除的逻辑,直接删除使用量即可
+		resourceKey := re.resourceKey(re.param)
+		_, err = re.cli.HDel(ctx, resourceKey, "used").Result()
+		return
 	}
 	defer func() {
 		re.lock.Unlock()
