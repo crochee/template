@@ -58,6 +58,7 @@ const (
 	HeaderXSourceValueCeen    = "ceen"
 	HeaderXSourceValuePaas    = "paas"
 	HeaderXSourceValueConsole = "console"
+	HeaderXSourceValueCns     = "cns"
 )
 
 // Authorization Basic
