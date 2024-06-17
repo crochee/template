@@ -136,7 +136,9 @@ func (r *restfulClient) Suffix(segments ...string) RESTClient {
 
 func (r *restfulClient) Resource(resource string) RESTClient {
 	if r.resource != "" {
-		return r.addErr(fmt.Errorf("resource already set to %q, cannot change to %q", r.resource, resource))
+		return r.addErr(
+			fmt.Errorf("resource already set to %q, cannot change to %q", r.resource, resource),
+		)
 	}
 	if reasons := IsValidPathSegmentName(resource); len(reasons) != 0 {
 		return r.addErr(fmt.Errorf("invalid resource %q: %v", resource, reasons))
@@ -150,7 +152,13 @@ func (r *restfulClient) Name(resourceName string) RESTClient {
 		return r.addErr(fmt.Errorf("resource name may not be empty"))
 	}
 	if r.resourceName != "" {
-		return r.addErr(fmt.Errorf("resource name already set to %q, cannot change to %q", r.resourceName, resourceName))
+		return r.addErr(
+			fmt.Errorf(
+				"resource name already set to %q, cannot change to %q",
+				r.resourceName,
+				resourceName,
+			),
+		)
 	}
 	if reasons := IsValidPathSegmentName(resourceName); len(reasons) != 0 {
 		return r.addErr(fmt.Errorf("invalid resource name %q: %v", resourceName, reasons))
@@ -162,7 +170,13 @@ func (r *restfulClient) Name(resourceName string) RESTClient {
 func (r *restfulClient) SubResource(subResources ...string) RESTClient {
 	subresource := path.Join(subResources...)
 	if r.subresource != "" {
-		return r.addErr(fmt.Errorf("subresource already set to %q, cannot change to %q", r.subresource, subresource))
+		return r.addErr(
+			fmt.Errorf(
+				"subresource already set to %q, cannot change to %q",
+				r.subresource,
+				subresource,
+			),
+		)
 	}
 	for _, s := range subResources {
 		if reasons := IsValidPathSegmentName(s); len(reasons) != 0 {
@@ -310,18 +324,28 @@ func (r *restfulClient) Retry(attempts int, interval time.Duration,
 }
 
 func (r *restfulClient) newBackOff() backoff.BackOff {
-	if r.attempts < 2 || r.interval <= 0 {
-		return &backoff.ZeroBackOff{}
+	if r.interval > 0 {
+		b := backoff.NewExponentialBackOff()
+		b.InitialInterval = r.interval
+		b.MaxInterval = 120 * b.InitialInterval
+		b.MaxElapsedTime = 15 * b.MaxInterval
+		if r.attempts > 0 {
+			b.Multiplier = math.Pow(2, 1/float64(r.attempts-1))
+			return backoff.WithMaxRetries(b, uint64(r.attempts))
+		}
+		return b
 	}
-
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = r.interval
-	b.Multiplier = math.Pow(2, 1/float64(r.attempts-1))
-	b.Reset()
+	b := &backoff.ZeroBackOff{}
+	if r.attempts > 0 {
+		return backoff.WithMaxRetries(b, uint64(r.attempts))
+	}
 	return b
 }
 
-func (r *restfulClient) roundTrip(req *http.Request, operate func(*http.Request) (*http.Response, error)) (*http.Response, error) {
+func (r *restfulClient) roundTrip(
+	req *http.Request,
+	operate func(*http.Request) (*http.Response, error),
+) (*http.Response, error) {
 	if r.attempts <= 1 {
 		return operate(req)
 	}
@@ -330,29 +354,23 @@ func (r *restfulClient) roundTrip(req *http.Request, operate func(*http.Request)
 	defer body.Close()
 	req.Body = io.NopCloser(body)
 
-	var (
-		attempts = 1
-		err      error
-		resp     *http.Response
-	)
+	var resp *http.Response
 	retryOperate := func() error {
-		shouldRetry := attempts < r.attempts
+		var err error
 		resp, err = operate(req)
-		if !shouldRetry || (r.shouldRetryFunc != nil && !r.shouldRetryFunc(resp, err)) {
-			return nil
+		if r.shouldRetryFunc != nil && !r.shouldRetryFunc(resp, err) {
+			return backoff.Permanent(err)
 		}
-		attempts++
-		return fmt.Errorf("attempt %d failed", attempts-1)
+		return err
 	}
 	ctx := req.Context()
 	backOff := backoff.WithContext(r.newBackOff(), ctx)
+	backOff.Reset()
 
 	notify := func(err error, d time.Duration) {
-		r.From(ctx).Warnf("New attempt,err %+v, interval %s, attempts %d, url %s", err, d, attempts, req.URL.String())
+		r.From(ctx).Warnf("New attempt,err %+v, interval %s, url %s", err, d,  req.URL.String())
 	}
-	if errRetry := backoff.RetryNotify(retryOperate, backOff, notify); errRetry != nil {
-		r.From(ctx).Warnf("final retry attempt failed, err %+v, url %s", errRetry, req.URL.String())
-	}
+	err := backoff.RetryNotify(retryOperate, backOff, notify)
 	return resp, err
 }
 
