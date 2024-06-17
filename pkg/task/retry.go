@@ -2,15 +2,10 @@ package task
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
-	"github.com/pkg/errors"
-	"go.uber.org/multierr"
-
-	"template/pkg/utils/v"
 )
 
 const (
@@ -87,69 +82,34 @@ func RetryTask(t Task, opts ...RetryOption) Task {
 }
 
 func (rt *retryTask) Commit(ctx context.Context, input interface{}, callbacks ...Callback) error {
-	err := rt.Task.Commit(ctx, input, callbacks...)
-	if err == nil {
-		return nil
+	backOff := backoff.WithContext(rt.newBackOff(), ctx)
+	backOff.Reset()
+	retryOperate := func() error {
+		return rt.Task.Commit(ctx, input, callbacks...)
 	}
-
-	var tempAttempts int
-	backOff := rt.newBackOff() // 退避算法 保证时间间隔为指数级增长
-	currentInterval := backOff.NextBackOff()
-	timer := time.NewTimer(currentInterval)
-	for {
-		select {
-		case <-timer.C:
-			shouldRetry := tempAttempts < rt.attempts
-			if !shouldRetry {
-				timer.Stop()
-				return err
-			}
-			retryErr := rt.Task.Commit(ctx, input, callbacks...)
-			if retryErr == nil {
-				timer.Stop()
-				return nil
-			}
-			var permanent *backoff.PermanentError
-			if errors.As(retryErr, &permanent) {
-				err = multierr.Append(err, fmt.Errorf("%w %d try", permanent.Err, tempAttempts+1))
-				shouldRetry = false
-			} else {
-				err = multierr.Append(err, fmt.Errorf("%w %d try", retryErr, tempAttempts+1))
-			}
-			if !shouldRetry {
-				timer.Stop()
-				return err
-			}
-			// 计算下一次
-			currentInterval = backOff.NextBackOff()
-			tempAttempts++
-			// 定时器重置
-			timer.Reset(currentInterval)
-		case <-ctx.Done():
-			timer.Stop()
-			return ctx.Err()
-		}
-	}
+	return backoff.Retry(retryOperate, backOff)
 }
 
-func (rt *retryTask) newBackOff() backoff.BackOff {
-	if rt.timeout > 0 {
+func (r *retryTask) newBackOff() backoff.BackOff {
+	if r.timeout > 0 {
 		// 常量间隔时间
-		rt.attempts = int(rt.timeout / rt.interval)
-		return backoff.NewConstantBackOff(rt.interval)
+		r.attempts = int(r.timeout / r.interval)
+		return backoff.WithMaxRetries(backoff.NewConstantBackOff(r.interval), uint64(r.attempts))
 	}
-	if rt.attempts < 2 || rt.interval <= 0 {
-		return &backoff.ZeroBackOff{}
+	if r.interval > 0 {
+		b := backoff.NewExponentialBackOff()
+		b.InitialInterval = r.interval
+		b.MaxInterval = 120 * b.InitialInterval
+		b.MaxElapsedTime = 15 * b.MaxInterval
+		if r.attempts > 0 {
+			b.Multiplier = math.Pow(2, 1/float64(r.attempts-1))
+			return backoff.WithMaxRetries(b, uint64(r.attempts))
+		}
+		return b
 	}
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = rt.interval
-
-	// calculate the multiplier for the given number of attempts
-	// so that applying the multiplier for the given number of attempts will not exceed 2 times the initial interval
-	// it allows to control the progression along the attempts
-	b.Multiplier = math.Pow(v.Binary, 1/float64(rt.attempts-1))
-
-	// according to docs, b.Reset() must be called before using
-	b.Reset()
+	b := &backoff.ZeroBackOff{}
+	if r.attempts > 0 {
+		return backoff.WithMaxRetries(b, uint64(r.attempts))
+	}
 	return b
 }
