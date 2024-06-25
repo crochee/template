@@ -136,8 +136,21 @@ func New(ctx context.Context, opts ...Option) (*DB, error) {
 	for _, f := range opts {
 		f(o)
 	}
-	client, err := gorm.Open(mysql.Open(Dsn(o.user, o.password, o.ip, o.port,
-		o.database, o.charset, o.timeout, o.readTimeout, o.writeTimeout)),
+	client, err := gorm.Open(
+		&mysql.Dialector{Config: &mysql.Config{
+			DSN: Dsn(
+				o.user,
+				o.password,
+				o.ip,
+				o.port,
+				o.database,
+				o.charset,
+				o.timeout,
+				o.readTimeout,
+				o.writeTimeout,
+			),
+			DisableWithReturning: true,
+		}},
 		&gorm.Config{
 			SkipDefaultTransaction: false,
 			NamingStrategy: schema.NamingStrategy{
@@ -175,7 +188,10 @@ func New(ctx context.Context, opts ...Option) (*DB, error) {
 	return &DB{DB: client}, nil
 }
 
-func Dsn(user, password, ip, port, database, charset string, timeout, readTimeout, writeTimeout time.Duration) string {
+func Dsn(
+	user, password, ip, port, database, charset string,
+	timeout, readTimeout, writeTimeout time.Duration,
+) string {
 	uri := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=%s&parseTime=%t&loc=%s",
 		user, password, ip, port, database, charset, true, "UTC")
 	if timeout != 0 {
