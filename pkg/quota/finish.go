@@ -66,6 +66,12 @@ func (no *noneCacheFinishQuotaFinisher) sync(ctx context.Context) (err error) {
 
 func (no *noneCacheFinishQuotaFinisher) evauate(ctx context.Context) (err error) {
 	panicked := true
+	var quota int
+	if quota, err = no.handler.QueryQuota(ctx, no.param.AssociatedID); err != nil {
+		panicked = false
+		err = errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
+		return
+	}
 	if err = no.lock.Lock(); err != nil {
 		return
 	}
@@ -75,13 +81,6 @@ func (no *noneCacheFinishQuotaFinisher) evauate(ctx context.Context) (err error)
 			no.lock.Unlock()
 		}
 	}()
-
-	var quota int
-	if quota, err = no.handler.QueryQuota(ctx, no.param.AssociatedID); err != nil {
-		panicked = false
-		err = errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
-		return
-	}
 	var used int
 	if used, err = no.handler.QueryUsed(ctx, no.param.AssociatedID); err != nil {
 		panicked = false
@@ -280,6 +279,11 @@ func (re *redisFinishQuota) sync(ctx context.Context) error {
 
 // 评估配额的过程
 func (re *redisFinishQuota) evauate(ctx context.Context) (err error) {
+	// 获取配额数据
+	quota, err := re.handler.QueryQuota(ctx, re.param.AssociatedID)
+	if err != nil {
+		return errors.WithStack(err)
+	}
 	panicked := true
 	if err = re.lock.Lock(); err != nil {
 		return
@@ -290,11 +294,6 @@ func (re *redisFinishQuota) evauate(ctx context.Context) (err error) {
 			re.lock.Unlock()
 		}
 	}()
-	// 获取配额数据
-	quota, err := re.handler.QueryQuota(ctx, re.param.AssociatedID)
-	if err != nil {
-		return errors.WithStack(err)
-	}
 	// 尝试预占配额
 	var retry bool
 	if retry, err = re.preHandle(ctx, quota, re.sync); err != nil {

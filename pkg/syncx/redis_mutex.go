@@ -138,7 +138,7 @@ func (m Mutex) tryLockLoop(ctx context.Context,
 ) (breakLoop bool, err error) {
 	// 尝试加锁
 	var pTTL int64
-	if pTTL, err = m.lock(clientID, expiration); err != nil {
+	if pTTL, err = lockFunc(clientID, expiration); err != nil {
 		return
 	}
 	if pTTL == 0 {
