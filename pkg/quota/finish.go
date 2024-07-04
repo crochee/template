@@ -274,18 +274,21 @@ func (re *redisFinishQuota) sync(ctx context.Context) error {
 	pl.Expire(ctx, resourceKey, re.expire)
 	_, err = pl.Exec(ctx)
 	_ = pl.Close()
-	return err
+	return errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
 }
 
 // 评估配额的过程
 func (re *redisFinishQuota) evauate(ctx context.Context) (err error) {
 	// 获取配额数据
-	quota, err := re.handler.QueryQuota(ctx, re.param.AssociatedID)
+	var quota int
+	quota, err = re.handler.QueryQuota(ctx, re.param.AssociatedID)
 	if err != nil {
-		return errors.WithStack(err)
+		err = errors.WithStack(err)
+		return
 	}
 	panicked := true
 	if err = re.lock.Lock(); err != nil {
+		err = errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
 		return
 	}
 	re.state.AddStatus(stateEvauate)
@@ -367,6 +370,7 @@ func (re *redisFinishQuota) Rollback(ctx context.Context) (err error) {
 	// 没有执行过预占逻辑需要锁住回滚的过程
 	if re.state.NotHasStatus(stateEvauate) {
 		if err = re.lock.Lock(); err != nil {
+			err = errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
 			return
 		}
 		defer func() {
@@ -375,6 +379,7 @@ func (re *redisFinishQuota) Rollback(ctx context.Context) (err error) {
 		// 删除的逻辑,直接删除使用量即可
 		resourceKey := re.resourceKey(re.param)
 		_, err = re.cli.HDel(ctx, resourceKey, "used").Result()
+		err = errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
 		return
 	}
 	defer func() {
