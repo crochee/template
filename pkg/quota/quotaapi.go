@@ -10,8 +10,7 @@ import (
 )
 
 func RegisterAPI(router *gin.Engine) {
-	router.POST("/used_quotas", SyncUsed)
-
+	router.POST("/quotas/sync", SyncUsed)
 }
 
 type SyncUsedReq struct {
