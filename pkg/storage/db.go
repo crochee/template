@@ -167,6 +167,10 @@ func New(ctx context.Context, opts ...Option) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	// Replace preload callback
+	client.Callback().Query().Replace("gorm:preload", Preload)
+
 	// 插件注入
 	for _, plugin := range o.plugins {
 		if err = client.Use(plugin); err != nil {
