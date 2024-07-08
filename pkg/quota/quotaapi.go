@@ -10,11 +10,16 @@ import (
 )
 
 func RegisterAPI(router *gin.Engine) {
-	router.POST("/quotas/sync", SyncUsed)
+	router.POST("v1/quotas/sync", SyncUsed)
 }
 
 type SyncUsedReq struct {
-	Params []*Param
+	Params []*SyncParam `json:"params"`
+}
+
+type SyncParam struct {
+	AssociatedID string `json:"associated_id" binding:"required"`
+	Name         string `json:"name"`
 }
 
 func SyncUsed(c *gin.Context) {
@@ -23,7 +28,14 @@ func SyncUsed(c *gin.Context) {
 		resp.ErrorParam(c, err)
 		return
 	}
-	finisher, err := Mgr().getFinisher(c.Request.Context(), req.Params)
+	params := make([]*Param, 0, len(req.Params))
+	for _, v := range req.Params {
+		params = append(params, &Param{
+			AssociatedID: v.AssociatedID,
+			Name:         v.Name,
+		})
+	}
+	finisher, err := Mgr().getFinisher(c.Request.Context(), params)
 	if err != nil {
 		resp.Error(c, err)
 		return

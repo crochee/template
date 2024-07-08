@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-redis/redis/v8"
@@ -17,12 +19,10 @@ import (
 
 var (
 	// 配额相关错误
-	ErrResourceQuotaInsufficient     = code.Froze("500-11004400", "资源配额不足")
-	ErrResourceQuotaInvalid          = code.Froze("500-11004401", "资源配额数据无效，请重试")
-	ErrResourceQuotaAbnormal         = code.Froze("500-11004402", "资源配额数据异常，需要重新刷新用户配额数据")
-	ErrResourceQuotaScriptResInvalid = code.Froze("500-11004403", "资源配额脚本执行结果无效")
-	ErrQuotaServerDisable            = code.Froze("500-11004404", "配额服务暂时不可用，请稍后再试")
-	ErrWaitLockTimeout               = code.Froze("500-11004405", "等待锁超时")
+	ErrResourceQuotaInsufficient = code.Froze("500-11004400", "资源配额不足")
+	ErrResourceQuotaInvalid      = code.Froze("500-11004401", "资源配额数据无效，请重试")
+	ErrResourceQuotaAbnormal     = code.Froze("500-11004402", "资源配额数据异常，需要重新刷新用户配额数据")
+	ErrQuotaServerDisable        = code.Froze("500-11004404", "配额服务暂时不可用，请稍后再试")
 )
 
 const (
@@ -69,10 +69,12 @@ func (no *noneCacheFinishQuotaFinisher) evauate(ctx context.Context) (err error)
 	var quota int
 	if quota, err = no.handler.QueryQuota(ctx, no.param.AssociatedID); err != nil {
 		panicked = false
-		err = errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
+		err = errors.WithStack(err)
 		return
 	}
 	if err = no.lock.Lock(); err != nil {
+		panicked = false
+		err = errors.WithStack(err)
 		return
 	}
 	no.state.AddStatus(stateEvauate)
@@ -84,6 +86,7 @@ func (no *noneCacheFinishQuotaFinisher) evauate(ctx context.Context) (err error)
 	var used int
 	if used, err = no.handler.QueryUsed(ctx, no.param.AssociatedID); err != nil {
 		panicked = false
+		err = errors.WithStack(err)
 		return
 	}
 	if math.MaxUint64-no.param.Num < uint64(used) {
@@ -118,7 +121,7 @@ func (no *noneCacheFinishQuotaFinisher) Finally(ctx context.Context) error {
 	if no.state.NotHasStatus(stateEvauate) {
 		return nil
 	}
-	return no.lock.Unlock()
+	return errors.WithStack(no.lock.Unlock())
 }
 
 func (no *noneCacheFinishQuotaFinisher) Rollback(ctx context.Context) error {
@@ -131,7 +134,7 @@ func (no *noneCacheFinishQuotaFinisher) Rollback(ctx context.Context) error {
 	if no.state.NotHasStatus(stateEvauate) {
 		return nil
 	}
-	return no.lock.Unlock()
+	return errors.WithStack(no.lock.Unlock())
 }
 
 type Finishers []FinishQuota
@@ -218,7 +221,7 @@ func NewRedisFinishQuota(
 					return 'Invalid'
 				end
 				if tonumber(used) < tonumber(ARGV[1]) then
-					return 'Fail'
+					return 'Fail'..used
 				end
 		        redis.call('HINCRBY', KEYS[1], 'used', -tonumber(ARGV[1]))
 				if redis.call('TTL', KEYS[1]) == -1 then
@@ -235,7 +238,7 @@ func NewRedisFinishQuota(
 					return 'Invalid'
 				end
 				if tonumber(used) + tonumber(ARGV[1]) > tonumber(ARGV[2]) then
-					return 'Fail'
+					return 'Fail'..used
 				end
 		        redis.call('HINCRBY', KEYS[1], 'used', tonumber(ARGV[1]))
 				if redis.call('TTL', KEYS[1]) == -1 then
@@ -260,21 +263,28 @@ func (re *redisFinishQuota) resourceKey(param *Param) string {
 	return fmt.Sprintf("dcs:resource:{%s}:%s", param.AssociatedID, param.Name)
 }
 
-func (re *redisFinishQuota) sync(ctx context.Context) error {
-	// 修正错误数据
-	used, err := re.handler.QueryUsed(ctx, re.param.AssociatedID)
-	if err != nil {
-		return errors.WithStack(err)
-	}
+func (re *redisFinishQuota) syncWithUsed(ctx context.Context, used int) error {
 	// 由于命令过多，开启pipeline执行
 	pl := re.cli.Pipeline()
 	// 操作配额和使用量数据
 	resourceKey := re.resourceKey(re.param)
 	pl.HSet(ctx, resourceKey, "used", used)
 	pl.Expire(ctx, resourceKey, re.expire)
-	_, err = pl.Exec(ctx)
+	_, err := pl.Exec(ctx)
 	_ = pl.Close()
-	return errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
+	if err != nil {
+		return errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
+	}
+	return nil
+}
+
+func (re *redisFinishQuota) sync(ctx context.Context) error {
+	// 修正错误数据
+	used, err := re.handler.QueryUsed(ctx, re.param.AssociatedID)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+	return re.syncWithUsed(ctx, used)
 }
 
 // 评估配额的过程
@@ -288,7 +298,7 @@ func (re *redisFinishQuota) evauate(ctx context.Context) (err error) {
 	}
 	panicked := true
 	if err = re.lock.Lock(); err != nil {
-		err = errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
+		err = errors.WithStack(err)
 		return
 	}
 	re.state.AddStatus(stateEvauate)
@@ -321,28 +331,36 @@ func (re *redisFinishQuota) preHandle(
 	quota int,
 	handleInvalid func(ctx context.Context) error,
 ) (bool, error) {
-	resp, err := re.cli.Eval(ctx, re.preAppropriationScript,
-		[]string{re.resourceKey(re.param)}, re.param.Num, quota).Result()
+	result, err := re.cli.Eval(ctx, re.preAppropriationScript,
+		[]string{re.resourceKey(re.param)}, re.param.Num, quota).Text()
 	if err != nil {
 		return false, errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
 	}
-	result, ok := resp.(string)
-	if !ok {
-		return false, errors.WithStack(
-			ErrQuotaServerDisable.WithResult(fmt.Sprintf("invalid response:%v", resp)),
-		)
-	}
 	switch result {
-	case "Fail":
-		return false, errors.WithStack(
-			ErrResourceQuotaInsufficient.WithResult(
-				fmt.Sprintf("num:%d", re.param.Num),
-			),
-		)
 	case "Invalid":
 		// 第一次时可能没有数据，进行数据修正
 		return true, handleInvalid(ctx)
 	case "OK":
+	default:
+		cacheUsed := strings.TrimPrefix(result, "Fail")
+		used, err := re.handler.QueryUsed(ctx, re.param.AssociatedID)
+		if err == nil && strconv.Itoa(used) != cacheUsed {
+			err = re.syncWithUsed(ctx, used)
+		}
+		return false, errors.WithStack(
+			ErrResourceQuotaInsufficient.WithResult(
+				fmt.Sprintf(
+					"associatedID:%s, name:%s, num:%d,cache used:%s,actual quota:%d,current used:%d,found:%+v",
+					re.param.AssociatedID,
+					re.param.Name,
+					re.param.Num,
+					cacheUsed,
+					quota,
+					used,
+					err,
+				),
+			),
+		)
 	}
 	return false, nil
 }
@@ -357,7 +375,7 @@ func (re *redisFinishQuota) Finally(ctx context.Context) error {
 	if re.state.NotHasStatus(stateEvauate) {
 		return nil
 	}
-	return re.lock.Unlock()
+	return errors.WithStack(re.lock.Unlock())
 }
 
 func (re *redisFinishQuota) Rollback(ctx context.Context) (err error) {
@@ -370,45 +388,45 @@ func (re *redisFinishQuota) Rollback(ctx context.Context) (err error) {
 	// 没有执行过预占逻辑需要锁住回滚的过程
 	if re.state.NotHasStatus(stateEvauate) {
 		if err = re.lock.Lock(); err != nil {
-			err = errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
+			err = errors.WithStack(err)
 			return
 		}
-		defer func() {
-			re.lock.Unlock()
-		}()
+		defer re.lock.Unlock()
 		// 删除的逻辑,直接删除使用量即可
 		resourceKey := re.resourceKey(re.param)
-		_, err = re.cli.HDel(ctx, resourceKey, "used").Result()
-		err = errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
+		err = re.cli.HDel(ctx, resourceKey, "used").Err()
+		if err != nil {
+			err = errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
+		}
 		return
 	}
-	defer func() {
-		re.lock.Unlock()
-	}()
+	defer re.lock.Unlock()
 	// 回滚使用量
-	var resp interface{}
-	if resp, err = re.cli.Eval(ctx, re.rollbackScript,
-		[]string{re.resourceKey(re.param)}, re.param.Num).Result(); err != nil {
+	var result string
+	if result, err = re.cli.Eval(ctx, re.rollbackScript,
+		[]string{re.resourceKey(re.param)}, re.param.Num).Text(); err != nil {
 		err = errors.WithStack(ErrQuotaServerDisable.WithResult(err.Error()))
-		return
-	}
-	result, ok := resp.(string)
-	if !ok {
-		err = errors.WithStack(
-			ErrQuotaServerDisable.WithResult(fmt.Sprintf("invalid response:%v", resp)),
-		)
 		return
 	}
 	switch result {
-	case "Fail":
-		err = errors.WithStack(
-			ErrResourceQuotaAbnormal.WithResult(
-				fmt.Sprintf("num:%d", re.param.Num),
-			),
-		)
 	case "Invalid":
 		err = re.sync(ctx)
 	case "OK":
+	default:
+		used, ierr := re.handler.QueryUsed(ctx, re.param.AssociatedID)
+		err = errors.WithStack(
+			ErrResourceQuotaInsufficient.WithResult(
+				fmt.Sprintf(
+					"associatedID:%s, name:%s, num:%d,cache used:%s,current used:%d,found:%+v",
+					re.param.AssociatedID,
+					re.param.Name,
+					re.param.Num,
+					strings.TrimPrefix(result, "Fail"),
+					used,
+					ierr,
+				),
+			),
+		)
 	}
 	return
 }
