@@ -79,7 +79,7 @@ func (w *Writer) ExportSpans(ctx context.Context, spans []sdktrace.ReadOnlySpan)
 	paredntNeedSends := make(map[string]struct{}, len(spans)/2)
 	for i := range spans {
 		metadata := w.MetadataPool.Get()
-		metadata.TraceID = "req-" + uuid.UUID(spans[i].SpanContext().TraceID()).String()
+		metadata.TraceID =  uuid.UUID(spans[i].SpanContext().TraceID()).String()
 		events := spans[i].Events()
 		tempEvents := &DescContent{}
 		// 去重map初始化

@@ -5,7 +5,6 @@ import (
 	crand "crypto/rand"
 	"encoding/binary"
 	"math/rand"
-	"strings"
 	"sync"
 	"template/pkg/logger/gormx"
 
@@ -26,10 +25,10 @@ func (u *idGenerator) NewIDs(ctx context.Context) (trace.TraceID, trace.SpanID) 
 	_, _ = u.randSource.Read(sid[:])
 	u.Unlock()
 	tidString := u.getTraceID(ctx)
-	tid, err := uuid.FromString(strings.TrimPrefix(tidString, "req-"))
+	tid, err := uuid.FromString(tidString)
 	if err != nil {
 		tid = uuid.NewV4()
-		u.form(ctx).Errorf("pre_trace_id: %s,trace_id: req-%s,err: %v", tidString, tid.String(), err)
+		u.form(ctx).Errorf("pre_trace_id: %s,trace_id: %s,err: %v", tidString, tid.String(), err)
 	}
 	return trace.TraceID(tid), sid
 }
