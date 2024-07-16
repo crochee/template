@@ -16,7 +16,7 @@ const (
 var redisState uint32
 
 func checkRedis() {
-	client := NewClient()
+	client := NewRedisClient()
 
 	// 连续检测指定次数，只要超过指定次数都失败，才认为Redis不可用
 	allFailed := false
