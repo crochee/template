@@ -18,24 +18,41 @@ type Validator interface {
 
 // New validator
 func New() (*defaultValidator, error) {
-	v := &defaultValidator{Validate: validator.New()}
+	v := &defaultValidator{ValidateTranslator{Validate: validator.New()}}
 	v.Validate.SetTagName("binding")
 	v.translator, _ = ut.New(zh.New()).GetTranslator("zh")
 	if err := translations.RegisterDefaultTranslations(v.Validate, v.translator); err != nil {
+		return nil, err
+	}
+
+	// 注册comma_list tag对应的中文错误提示语
+	if err := v.Validate.RegisterTranslation("comma_list", v.translator, func(ut ut.Translator) error {
+		return ut.Add("comma_list", "{0}必须包含至少一个以下字符{1}, 多值用英文逗号间隔开来", true)
+	}, func(ut ut.Translator, fe validator.FieldError) string {
+		t, err := ut.T(fe.Tag(), fe.Field(), fe.Param())
+		if err != nil {
+			return fe.Error()
+		}
+		return t
+	}); err != nil {
 		return nil, err
 	}
 	return v, nil
 }
 
 func NewValidator() Validator {
-	v := &defaultValidator{Validate: validator.New()}
+	v := &defaultValidator{ValidateTranslator{Validate: validator.New()}}
 	v.Validate.SetTagName("binding")
 	return v
 }
 
-type defaultValidator struct {
+type ValidateTranslator struct {
 	Validate   *validator.Validate
 	translator ut.Translator
+}
+
+type defaultValidator struct {
+	ValidateTranslator
 }
 
 // ValidateStruct receives any kind of type, but only performed struct or pointer to struct type.
