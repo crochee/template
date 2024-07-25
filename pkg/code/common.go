@@ -2,6 +2,7 @@ package code
 
 import (
 	"fmt"
+	"strings"
 )
 
 var (
@@ -112,4 +113,12 @@ func Unwrap(err error) error {
 		err = u.Unwrap()
 	}
 	return err
+}
+
+func IsResourceNotFound(err error) bool {
+	errorCode, ok := Unwrap(err).(ErrorCode)
+	if ok {
+		return strings.HasPrefix(errorCode.Code(), "404")
+	}
+	return false
 }
