@@ -1,7 +1,9 @@
 package client
 
 import (
+	"net"
 	"net/http"
+	"time"
 )
 
 type Transport interface {
@@ -17,10 +19,28 @@ type Transport interface {
 	Method(string) RESTClient
 }
 
-var DefaultTransport Transport = NewTransporter(
-	OriginalRequest{},
-	CurlRoundTripperWithFault(),
-	ResponseHandler{},
+var (
+	DefaultTransport Transport = NewTransporter(
+		OriginalRequest{},
+		CurlRoundTripperWithFault(),
+		ResponseHandler{},
+	)
+
+	StdTransport = &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   30 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+		// 当前客户端因大量并发协程调用导致被调用端端口用尽，出现cannot assign requested address报错，导致服务不可用
+		// 从http.DefaultTransport拷贝默认配置，并指定MaxConnsPerHost参数用来限制底层连接池最大数目，复用连接
+		MaxConnsPerHost: 5000,
+	}
 )
 
 type Transporter struct {

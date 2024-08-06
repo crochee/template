@@ -21,7 +21,7 @@ func CurlRoundTripper() *CustomTransporter {
 		Merge: func(context.Context, string) {
 		},
 		From:         gormx.NewZapGormWriterFrom,
-		RoundTripper: http.DefaultTransport,
+		RoundTripper: StdTransport,
 	}
 }
 
@@ -30,7 +30,7 @@ func CurlRoundTripperWithFault() *CustomTransporter {
 	return &CustomTransporter{
 		Merge:        server.Merge,
 		From:         gormx.NewZapGormWriterFrom,
-		RoundTripper: http.DefaultTransport,
+		RoundTripper: StdTransport,
 	}
 }
 
@@ -39,7 +39,7 @@ func CurlRoundTripperDisableCurl() http.RoundTripper {
 	return &CustomTransporter{
 		Merge:        server.Merge,
 		From:         gormx.Nop,
-		RoundTripper: http.DefaultTransport,
+		RoundTripper: StdTransport,
 	}
 }
 
