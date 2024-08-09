@@ -32,14 +32,17 @@ var (
 			Timeout:   30 * time.Second,
 			KeepAlive: 30 * time.Second,
 		}).DialContext,
-		ForceAttemptHTTP2:     true,
-		MaxIdleConns:          100,
+		ForceAttemptHTTP2: true,
+		// 最好的情况是略大于MaxIdleConnsPerHost
+		MaxIdleConns:          3000,
 		IdleConnTimeout:       90 * time.Second,
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 		// 当前客户端因大量并发协程调用导致被调用端端口用尽，出现cannot assign requested address报错，导致服务不可用
 		// 从http.DefaultTransport拷贝默认配置，并指定MaxConnsPerHost参数用来限制底层连接池最大数目，复用连接
 		MaxConnsPerHost: 5000,
+		// NOTE: 默认为2的情况下，面对暴增连接会出现非常多的关闭情况，导致大量TIME_WAIT的情况
+		MaxIdleConnsPerHost: 2500,
 	}
 )
 
