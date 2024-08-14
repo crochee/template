@@ -141,3 +141,54 @@ func TestComponentName(t *testing.T) {
 		})
 	}
 }
+
+type CommaListValidateTestReq struct {
+	RequestTypes string `form:"request_types" binding:"comma_list=cpu mem"`
+}
+
+func TestCommaListValidate(t *testing.T) {
+	engine, err := New()
+	assert.Nil(t, err)
+	err = RegisterValidation(engine, "comma_list", CommaListValidate)
+	assert.Nil(t, err)
+
+	type args struct {
+		value string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "normal",
+			args: args{
+				value: "cpu mem",
+			},
+			want: true,
+		},
+		{
+			name: "contains not exist element",
+			args: args{
+				value: "cpu mem test",
+			},
+			want: false,
+		},
+		{
+			name: "contains duplicated element",
+			args: args{
+				value: "cpu cpu cpu",
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err = engine.ValidateStruct(CommaListValidateTestReq{RequestTypes: tt.args.value})
+			if (err != nil) != tt.want {
+				assert.NotNil(t, err, "err:%v", err)
+				return
+			}
+		})
+	}
+}
