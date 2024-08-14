@@ -73,8 +73,21 @@ func CommaListValidate(fl validator.FieldLevel) bool {
 		return false
 	}
 
+	inputValues := strings.Split(list, ",")
 	targetValues := strings.Split(fl.Param(), " ")
-	for _, value := range strings.Split(list, ",") {
+	valueMap := make(map[string]struct{}, len(targetValues))
+	// 检查参数是否存在重复的元素
+	for _, value := range inputValues {
+		// 如果map中已经存在该字符串，则表明有重复的元素
+		_, exist := valueMap[value]
+		if exist {
+			return false
+		}
+		valueMap[value] = struct{}{}
+	}
+
+	// 检查参数是否在枚举值列表的范围内
+	for _, value := range inputValues {
 		if !set.IsContains(value, targetValues) {
 			return false
 		}
