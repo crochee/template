@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	amqprpc "github.com/0x4b53/amqp-rpc/v3"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
@@ -23,6 +24,7 @@ const (
 	actionCreateEvent = "create_event"
 	actionUpdateEvent = "update_event"
 	ActionFinishEvent = "finish_event"
+	ActionPing        = "ping"
 )
 
 // Event common header used by rpc message
@@ -68,6 +70,23 @@ func send(ctx context.Context, actionName string, msgBody interface{}) error {
 	req.WriteHeader(HeaderActionName, actionName)
 
 	return client.Cast(ctx, req)
+}
+
+// ping is used to test the connection of rabbitmq
+func ping(ctx context.Context) (*amqp.Delivery, error) {
+	exchange := viper.GetString("rabbitmq.producer.piraty_event.exchange")
+	routingKey := viper.GetString("rabbitmq.producer.piraty_event.routing-key")
+	if exchange == "" || routingKey == "" {
+		return nil, errors.New("got no exchange or routingKey from config file")
+	}
+
+	req := amqprpc.NewRequest().
+		WithExchange(exchange).
+		WithRoutingKey(routingKey).
+		WithBody("")
+	req.WriteHeader(HeaderActionName, ActionPing)
+
+	return client.Call(ctx, req)
 }
 
 type createEventBody struct {
@@ -394,4 +413,9 @@ func SetEventStatusForce(ctx context.Context, id uint64, status string) error {
 		status = statusFailure
 	}
 	return doFinishEvent(ctx, id, nil, status)
+}
+
+// Ping will ping the rpc server and return the response.
+func Ping(ctx context.Context) (*amqp.Delivery, error) {
+	return ping(ctx)
 }

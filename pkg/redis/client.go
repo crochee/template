@@ -242,6 +242,10 @@ func (c *Client) ZRange(key string, start, end int64) ([]string, error) {
 	return c.cli.ZRange(c.ctx, key, start, end).Result()
 }
 
+func (c *Client) ClusterInfo() (string, error) {
+	return c.cli.ClusterInfo(c.ctx).Result()
+}
+
 func (c *Client) Client() *redis.ClusterClient {
 	return c.cli
 }
