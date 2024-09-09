@@ -15,8 +15,7 @@ type Response interface {
 	Parse(resp *http.Response, result interface{}, opts ...func(*http.Response) error) error
 }
 
-type ResponseHandler struct {
-}
+type ResponseHandler struct{}
 
 func (o ResponseHandler) Parse(resp *http.Response, result interface{}, opts ...func(*http.Response) error) error {
 	for _, opt := range opts {
@@ -26,6 +25,9 @@ func (o ResponseHandler) Parse(resp *http.Response, result interface{}, opts ...
 	}
 	if resp.StatusCode == http.StatusNoContent || result == nil {
 		return nil
+	}
+	if resp.StatusCode/2 != 2 {
+		return errors.New(resp.Status)
 	}
 
 	if err := o.checkContentType(resp.Header.Get("Content-Type")); err != nil {
