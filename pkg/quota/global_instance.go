@@ -84,6 +84,34 @@ func Rollback(ctx context.Context, account string, requirement map[string]uint,
 	return finisher.Rollback(ctx)
 }
 
+// Finally 成功解锁
+func Finally(ctx context.Context, account string, requirement map[string]struct{}) error {
+	// 处理入参
+	params := make([]*paramWithStatus, 0, len(requirement))
+	for resource := range requirement {
+		// 标识已执行预占逻辑
+		status := &utils.Status{}
+		status.AddStatus(stateEvauate)
+		params = append(params, &paramWithStatus{
+			Param: &Param{
+				AssociatedID: account,
+				Name:         resource,
+				Num:          1,
+			},
+			Status: status,
+		})
+	}
+	finisher, err := Mgr().getFinisherWithStatus(ctx, params)
+	if err != nil {
+		return err
+	}
+	err = finisher.Finally(ctx)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 // CleanUsed 删除配额使用量，适用于资源删除时，对资源使用量进行扣减
 func CleanUsed(ctx context.Context, account string, requirement map[string]uint) error {
 	// 处理入参
