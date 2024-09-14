@@ -27,13 +27,6 @@ func SetZeroLogger(c *gin.Context) {
 	if adminID := c.GetHeader(v.HeaderAdminID); adminID != "" {
 		logContext = logContext.Str("admin_id", adminID)
 	}
-	// NOTE:为避免openapi用户拿别人的aksk调用，此处需要将accountid,userid重写入header
-	if accountID := c.GetHeader("Accountid"); accountID != "" {
-		c.Request.Header.Set(v.HeaderAccountID, accountID)
-	}
-	if userID := c.GetHeader("Userid"); userID != "" {
-		c.Request.Header.Set(v.HeaderUserID, userID)
-	}
 	if accountID := c.GetHeader(v.HeaderAccountID); accountID != "" {
 		logContext = logContext.Str("account_id", accountID)
 	}
@@ -58,13 +51,6 @@ func SetZapLogger(c *gin.Context) {
 		c.Writer.Header().Set(v.HeaderTraceID, traceID) // 响应头
 	}
 	var fields = []zapcore.Field{zap.String("trace_id", traceID)}
-	// NOTE:为避免openapi用户拿别人的aksk调用，此处需要将accountid,userid重写入header
-	if accountID := c.GetHeader("Accountid"); accountID != "" {
-		c.Request.Header.Set(v.HeaderAccountID, accountID)
-	}
-	if userID := c.GetHeader("Userid"); userID != "" {
-		c.Request.Header.Set(v.HeaderUserID, userID)
-	}
 
 	if accountID := c.GetHeader(v.HeaderAccountID); accountID != "" {
 		fields = append(fields, zap.String("account_id", accountID))
