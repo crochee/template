@@ -16,6 +16,7 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/google/go-cmp v0.6.0
 	github.com/json-iterator/go v1.1.12
+	github.com/mailgun/ttlmap v0.0.0-20170619185759-c1c17f74874f // No tag on the repo.
 	github.com/mattn/go-colorable v0.1.6
 	github.com/mitchellh/go-homedir v1.1.0
 	github.com/orcaman/concurrent-map v1.0.0
@@ -50,6 +51,8 @@ require (
 	moul.io/http2curl v1.0.0
 )
 
+replace github.com/mailgun/minheap => github.com/containous/minheap v0.0.0-20190809180810-6e71eb837595
+
 require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
@@ -68,6 +71,8 @@ require (
 	github.com/lithammer/shortuuid/v3 v3.0.4 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
 	github.com/magiconair/properties v1.8.1 // indirect
+	github.com/mailgun/minheap v0.0.0-00010101000000-000000000000 // indirect
+	github.com/mailgun/timetools v0.0.0-20141028012446-7e6055773c51 // indirect
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
