@@ -17,6 +17,7 @@ var (
 	ErrUnauthorized         = Froze("4010000007", "用户未认证")
 	ErrCodeUnknown          = Froze("5000000008", "未知错误")
 	ErrCodeRedisCacheOption = Froze("5000000009", "Redis缓存操作失败")
+	ErrTooManyRequests      = Froze("4290000010", "请求频率过高")
 
 	// woslo 错误
 	ErrCodeInvalidParam        = Froze("400-1000000", "请求参数不正确")
@@ -42,6 +43,7 @@ func AddCode(m map[ErrorCode]struct{}) error {
 		ErrUnauthorized:         {},
 		ErrCodeUnknown:          {},
 		ErrCodeRedisCacheOption: {},
+		ErrTooManyRequests:      {},
 
 		ErrCodeInvalidParam:        {},
 		ErrCodeNotFound:            {},
