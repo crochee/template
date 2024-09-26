@@ -1,8 +1,6 @@
 package middlewares
 
 import (
-	"context"
-
 	"github.com/gin-gonic/gin"
 	"github.com/mailgun/ttlmap"
 
@@ -14,7 +12,6 @@ import (
 
 // RateLimit limit request rate
 func RateLimit(
-	whiteList func(ctx context.Context) map[string]struct{},
 	rlf func(key string) limit.RateLimiter,
 ) func(c *gin.Context) {
 	buckets, err := ttlmap.NewConcurrent(65536)
@@ -25,11 +22,6 @@ func RateLimit(
 		// 不存在HeaderAccountID直接放行
 		source := c.GetHeader(v.HeaderAccountID)
 		if source == "" {
-			c.Next()
-			return
-		}
-		// // 白名单直接放行
-		if _, exists := whiteList(c.Request.Context())[source]; exists {
 			c.Next()
 			return
 		}
