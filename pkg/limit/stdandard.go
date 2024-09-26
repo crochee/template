@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
 
 	"template/pkg/clock"
@@ -16,6 +17,37 @@ type RateLimiter interface {
 	Accept()
 	// Wait returns nil if a token is taken before the Context is done.
 	Wait(ctx context.Context) error
+}
+
+type AllowRateLimiter struct{}
+
+func (AllowRateLimiter) TryAccept() bool {
+	return true
+}
+
+// Accept returns once a token becomes available.
+func (AllowRateLimiter) Accept() {
+}
+
+// Wait returns nil if a token is taken before the Context is done.
+func (AllowRateLimiter) Wait(ctx context.Context) error {
+	return nil
+}
+
+type DenyRateLimiter struct{}
+
+func (DenyRateLimiter) TryAccept() bool {
+	return false
+}
+
+// Accept returns once a token becomes available.
+func (DenyRateLimiter) Accept() {
+	panic("not implemented")
+}
+
+// Wait returns nil if a token is taken before the Context is done.
+func (DenyRateLimiter) Wait(ctx context.Context) error {
+	return errors.New("rate limit denied")
 }
 
 // An injectable, mockable clock interface.
