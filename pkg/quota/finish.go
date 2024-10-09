@@ -89,7 +89,7 @@ func (no *noneCacheFinishQuotaFinisher) evauate(ctx context.Context) (err error)
 		err = errors.WithStack(err)
 		return
 	}
-	if math.MaxUint64-no.param.Num < uint64(used) {
+	if math.MaxInt64-int64(used) < no.param.Num {
 		panicked = false
 		err = errors.WithStack(
 			ErrResourceQuotaInvalid.WithResult(
@@ -98,7 +98,8 @@ func (no *noneCacheFinishQuotaFinisher) evauate(ctx context.Context) (err error)
 		)
 		return
 	}
-	if uint64(used)+no.param.Num > uint64(quota) {
+	caculateUsed := int64(used) + no.param.Num
+	if caculateUsed > int64(quota) || caculateUsed < 0 {
 		panicked = false
 		err = errors.WithStack(
 			ErrResourceQuotaInsufficient.WithResult(
@@ -216,11 +217,12 @@ func NewRedisFinishQuota(
 		rollbackScript: `
             	-- KEYS[1] 锁名
             	-- ARGV[1] 占用的资源数
-		        local used = redis.call('HGET', KEYS[1], 'used')
-				if tonumber(used) == nil then
+		        local used = tonumber(redis.call('HGET', KEYS[1], 'used'))
+				if used == nil then
 					return 'Invalid'
 				end
-				if tonumber(used) < tonumber(ARGV[1]) then
+                local arg1 = tonumber(ARGV[1])
+                if arg1 > 0 and used < arg1 then
 					return 'Fail'..used
 				end
 		        redis.call('HINCRBY', KEYS[1], 'used', -tonumber(ARGV[1]))
@@ -233,14 +235,16 @@ func NewRedisFinishQuota(
             	-- KEYS[1] 锁名
             	-- ARGV[1] 占用的资源数
             	-- ARGV[2] 配额数据
-		        local used = redis.call('HGET', KEYS[1], 'used')
-				if tonumber(used) == nil then
+		        local used = tonumber(redis.call('HGET', KEYS[1], 'used'))
+				if used == nil then
 					return 'Invalid'
 				end
-				if tonumber(used) + tonumber(ARGV[1]) > tonumber(ARGV[2]) then
+                local arg1 = tonumber(ARGV[1])
+                local caculateUsed = arg1 + used
+                if caculateUsed > tonumber(ARGV[2]) or caculateUsed < 0 then
 					return 'Fail'..used
 				end
-		        redis.call('HINCRBY', KEYS[1], 'used', tonumber(ARGV[1]))
+		        redis.call('HINCRBY', KEYS[1], 'used', arg1)
 				if redis.call('TTL', KEYS[1]) == -1 then
 					redis.call('DEL', KEYS[1])
 				end

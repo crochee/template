@@ -17,7 +17,7 @@ type Param struct {
 	// 当前需要占用配额的资源名称
 	Name string
 	// 当前需要占用配额的资源数量
-	Num uint64
+	Num int64
 }
 
 // 配额预占接口

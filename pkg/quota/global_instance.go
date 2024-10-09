@@ -26,7 +26,7 @@ func InitResourceQuotaManager(o ...option) {
 func PrepareOccupying(
 	ctx context.Context,
 	account string,
-	requirement map[string]uint,
+	requirement map[string]int,
 ) (FinishQuota, error) {
 	// 处理入参
 	params := make([]*Param, 0, len(requirement))
@@ -37,7 +37,7 @@ func PrepareOccupying(
 		params = append(params, &Param{
 			AssociatedID: account,
 			Name:         resource,
-			Num:          uint64(num),
+			Num:          int64(num),
 		})
 	}
 	finish, err := Mgr().Begin(ctx, params)
@@ -57,7 +57,7 @@ func Mgr() *resourceQuotaManager {
 }
 
 // Rollback 单独的 错误结束回调操作的功能，适用于  异步操作后资源创建失败，回滚配额
-func Rollback(ctx context.Context, account string, requirement map[string]uint,
+func Rollback(ctx context.Context, account string, requirement map[string]int,
 	_ time.Time) error {
 	// 处理入参
 	params := make([]*paramWithStatus, 0, len(requirement))
@@ -72,7 +72,7 @@ func Rollback(ctx context.Context, account string, requirement map[string]uint,
 			Param: &Param{
 				AssociatedID: account,
 				Name:         resource,
-				Num:          uint64(num),
+				Num:          int64(num),
 			},
 			Status: status,
 		})
@@ -96,7 +96,6 @@ func Finally(ctx context.Context, account string, requirement map[string]struct{
 			Param: &Param{
 				AssociatedID: account,
 				Name:         resource,
-				Num:          1,
 			},
 			Status: status,
 		})
@@ -113,7 +112,7 @@ func Finally(ctx context.Context, account string, requirement map[string]struct{
 }
 
 // CleanUsed 删除配额使用量，适用于资源删除时，对资源使用量进行扣减
-func CleanUsed(ctx context.Context, account string, requirement map[string]uint) error {
+func CleanUsed(ctx context.Context, account string, requirement map[string]int) error {
 	// 处理入参
 	params := make([]*paramWithStatus, 0, len(requirement))
 	for resource := range requirement {
