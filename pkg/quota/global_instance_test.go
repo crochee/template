@@ -53,7 +53,7 @@ func TestPrepareOccupying(t *testing.T) {
 	type args struct {
 		ctx         context.Context
 		account     string
-		requirement map[string]uint
+		requirement map[string]int
 	}
 	tests := []struct {
 		name      string
@@ -66,7 +66,7 @@ func TestPrepareOccupying(t *testing.T) {
 			args: args{
 				ctx:     ctx,
 				account: "test",
-				requirement: map[string]uint{
+				requirement: map[string]int{
 					"CPUA": 1,
 					"CPUB": 1,
 					"CPUC": 1,
@@ -79,7 +79,7 @@ func TestPrepareOccupying(t *testing.T) {
 			args: args{
 				ctx:     ctx,
 				account: "test",
-				requirement: map[string]uint{
+				requirement: map[string]int{
 					"CPUA": 3,
 					"CPUB": 3,
 					"CPUC": 5,
@@ -92,6 +92,17 @@ func TestPrepareOccupying(t *testing.T) {
 				}
 				return flag
 			},
+		},
+		{
+			name: "downgrade",
+			args: args{
+				ctx:     ctx,
+				account: "test",
+				requirement: map[string]int{
+					"CPUB": -2,
+				},
+			},
+			assertion: assert.NoError,
 		},
 	}
 	for _, tt := range tests {
