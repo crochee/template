@@ -241,7 +241,7 @@ func NewRedisFinishQuota(
 				end
                 local arg1 = tonumber(ARGV[1])
                 local caculateUsed = arg1 + used
-                if caculateUsed > tonumber(ARGV[2]) or caculateUsed < 0 then
+                if (arg1 > 0 and caculateUsed > tonumber(ARGV[2])) or (arg1 < 0 and caculateUsed < 0) then
 					return 'Fail'..used
 				end
 		        redis.call('HINCRBY', KEYS[1], 'used', arg1)
