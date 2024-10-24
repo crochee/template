@@ -40,7 +40,7 @@ func RateLimit(
 		}
 		err := bucket.Wait(c.Request.Context())
 		if err != nil {
-			resp.Error(c, code.ErrTooManyRequests.WithResult(err.Error()))
+			resp.Error(c, err)
 			return
 		}
 		c.Next()
