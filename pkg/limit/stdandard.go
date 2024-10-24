@@ -4,10 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/pkg/errors"
 	"golang.org/x/time/rate"
 
 	"template/pkg/clock"
+	"template/pkg/code"
 )
 
 
@@ -47,7 +47,7 @@ func (DenyRateLimiter) Accept() {
 
 // Wait returns nil if a token is taken before the Context is done.
 func (DenyRateLimiter) Wait(ctx context.Context) error {
-	return errors.New("rate limit denied")
+	return code.ErrForbidden.WithResult("rate limit denied")
 }
 
 // An injectable, mockable clock interface.

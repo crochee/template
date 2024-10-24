@@ -9,6 +9,8 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
+
+	"template/pkg/code"
 )
 
 type redisRateLimiter struct {
@@ -162,7 +164,11 @@ func (r *redisRateLimiter) Wait(ctx context.Context) error {
 		timer := time.NewTimer(d)
 		return timer.C, timer.Stop, func() {}
 	}
-	return r.wait(ctx, 1, r.clock.Now(), newTimer)
+	err := r.wait(ctx, 1, r.clock.Now(), newTimer)
+	if err != nil {
+		return code.ErrTooManyRequests.WithResult(err.Error())
+	}
+	return nil
 }
 
 func (r *redisRateLimiter) reserveN(
