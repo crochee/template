@@ -198,6 +198,58 @@ func (no noopFinishQuota) Finally(ctx context.Context) error {
 func (no noopFinishQuota) Rollback(ctx context.Context) error {
 	return nil
 }
+func NewStrictRedisFinishQuota(
+	handler UsedQuotaHandler,
+	param *Param,
+	lock syncx.Locker,
+	cli *redis.ClusterClient,
+	expire time.Duration,
+	state *utils.Status,
+) FinishQuota {
+	return &redisFinishQuota{
+		lock:    lock,
+		state:   state,
+		param:   param,
+		handler: handler,
+		cli:     cli,
+		expire:  expire,
+		rollbackScript: `
+            	-- KEYS[1] 锁名
+            	-- ARGV[1] 占用的资源数
+		        local used = tonumber(redis.call('HGET', KEYS[1], 'used'))
+				if used == nil then
+					return 'Invalid'
+				end
+                local arg1 = tonumber(ARGV[1])
+                if arg1 > 0 and used < arg1 then
+					return 'Fail'..used
+				end
+		        redis.call('HINCRBY', KEYS[1], 'used', -tonumber(ARGV[1]))
+				if redis.call('TTL', KEYS[1]) == -1 then
+					redis.call('DEL', KEYS[1])
+				end
+		        return 'OK'
+		        `,
+		preAppropriationScript: `
+            	-- KEYS[1] 锁名
+            	-- ARGV[1] 占用的资源数
+            	-- ARGV[2] 配额数据
+		        local used = tonumber(redis.call('HGET', KEYS[1], 'used'))
+				if used == nil then
+					return 'Invalid'
+				end
+                local arg1 = tonumber(ARGV[1])
+                local caculateUsed = arg1 + used
+                if caculateUsed > tonumber(ARGV[2]) or caculateUsed < 0 then
+					return 'Fail'..used
+				end
+		        redis.call('HINCRBY', KEYS[1], 'used', arg1)
+				if redis.call('TTL', KEYS[1]) == -1 then
+					redis.call('DEL', KEYS[1])
+				end
+		        return 'OK'
+		        `}
+}
 
 func NewRedisFinishQuota(
 	handler UsedQuotaHandler,
