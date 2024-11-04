@@ -18,13 +18,32 @@ import (
 // project -- 项目
 // user    --- 用户
 type PrimaryFilter struct {
-	AccountID      string   `header:"X-Account-ID" json:"account_id"`
-	AccountIDs     []string `form:"account_id"`
-	UserIDs        []string `form:"user_id"`
-	OrganizationID string   `form:"organization_id" json:"organization_id"`
-	ProjectID      string   `form:"project_id" json:"project_id"`
-	CallerID       string   `form:"caller_id" json:"caller_id"`
-	CallerCode     string   `form:"caller_code" json:"caller_code"`
+	// swagger:ignore
+	AccountID string `header:"X-Account-ID"`
+	// 账户ID
+	// Example: account_id=xxx&&account_id=xxx
+	// in: query
+	AccountIDs []string `                      form:"account_id"      json:"account_id"`
+	// 用户ID
+	// Example: user_id=xxx&&user_id=xxx
+	// in: query
+	UserIDs []string `                      form:"user_id"         json:"user_id"`
+	// 组织ID
+	// Example: organization_id=xxx
+	// in: query
+	OrganizationID string `                      form:"organization_id" json:"organization_id"`
+	// 项目ID
+	// Example: project_id=xxx
+	// in: query
+	ProjectID string `                      form:"project_id"      json:"project_id"`
+	// 上层调用者资源ID
+	// Example: caller_id=xxx
+	// in: query
+	CallerID string `                      form:"caller_id"       json:"caller_id"`
+	// 上层调用者资源编码
+	// Example: caller_code=xxx
+	// in: query
+	CallerCode string `                      form:"caller_code"     json:"caller_code"`
 }
 
 var (
@@ -95,7 +114,11 @@ func (p *PrimaryFilter) Build(ctx context.Context, query *gorm.DB, opts ...SQLOp
 	return query
 }
 
-func (p *PrimaryFilter) BuildPrivate(ctx context.Context, query *gorm.DB, opts ...SQLOption) *gorm.DB {
+func (p *PrimaryFilter) BuildPrivate(
+	ctx context.Context,
+	query *gorm.DB,
+	opts ...SQLOption,
+) *gorm.DB {
 	if isPrivate != nil && isPrivate() {
 		// 【私有云】
 		if getAPIFromConsole != nil && getAPIFromConsole(ctx) == v.APIFromConsole {
@@ -121,7 +144,11 @@ func (p *PrimaryFilter) BuildPrivate(ctx context.Context, query *gorm.DB, opts .
 	return query
 }
 
-func (p *PrimaryFilter) BuildStaff(ctx context.Context, query *gorm.DB, opts ...SQLOption) *gorm.DB {
+func (p *PrimaryFilter) BuildStaff(
+	ctx context.Context,
+	query *gorm.DB,
+	opts ...SQLOption,
+) *gorm.DB {
 	if getAdminID != nil && getAdminID(ctx) != "" {
 		// 【云警运维账号】
 		// 云警运维账号不会传X-Account-ID, 会用到account_ids
@@ -138,7 +165,11 @@ func (p *PrimaryFilter) BuildStaff(ctx context.Context, query *gorm.DB, opts ...
 	return query
 }
 
-func (p *PrimaryFilter) BuildPublic(ctx context.Context, query *gorm.DB, opts ...SQLOption) *gorm.DB {
+func (p *PrimaryFilter) BuildPublic(
+	ctx context.Context,
+	query *gorm.DB,
+	opts ...SQLOption,
+) *gorm.DB {
 	if isPrivate != nil && !isPrivate() && getAdminID != nil && getAdminID(ctx) == "" {
 		// 【行业云】
 		// 如果header’s X-Account-ID不为空，则需要把X-Account-ID追加到查询条件中
@@ -163,8 +194,10 @@ func (p *PrimaryFilter) BuildPublic(ctx context.Context, query *gorm.DB, opts ..
 // PrimarySearch 模糊过滤
 type PrimarySearch struct {
 	// 根据ID进行模糊过滤
-	SearchByID string `form:"search_by_id" json:"search_by_id"`
+	// in: query
+	SearchByID string `form:"search_by_id"   json:"search_by_id"`
 	// 根据名称进行模糊过滤
+	// in: query
 	SearchByName string `form:"search_by_name" json:"search_by_name"`
 }
 
@@ -181,9 +214,11 @@ func (p *PrimarySearch) Build(_ context.Context, query *gorm.DB, _ ...SQLOption)
 // PrimarySort 排序
 type PrimarySort struct {
 	// 根据创建时间排序,默认倒排,目前已经新增新的排序方式， 用sort字段来控制排序字段以及倒排还正排，后期考虑遗弃这个方法
+	// in: query
 	OrderCreatedAt string `form:"order_created_at" json:"order_created_at"`
 	// 给多个字段排序 created_at, id asc => order by created_at desc, id asc
-	SortField string `form:"sort" json:"sort" binding:"omitempty,order"`
+	// in: query
+	SortField string `form:"sort"             json:"sort"             binding:"omitempty,order"`
 }
 
 func (p *PrimarySort) Build(_ context.Context, query *gorm.DB, _ ...SQLOption) *gorm.DB {
@@ -213,9 +248,11 @@ func (p *PrimarySort) Build(_ context.Context, query *gorm.DB, _ ...SQLOption) *
 // CreatedScope 创建时间范围
 type CreatedScope struct {
 	// 创建时间查询开始值，时间格式：2006-01-02 15:04:05
+	// in: query
 	StartCreated string `form:"start_created" json:"start_created" binding:"omitempty,datetime=2006-01-02 15:04:05"`
 	// 创建时间查询结束值，时间格式：2006-01-02 15:04:05
-	EndCreated string `form:"end_created" json:"end_created" binding:"omitempty,datetime=2006-01-02 15:04:05"`
+	// in: query
+	EndCreated string `form:"end_created"   json:"end_created"   binding:"omitempty,datetime=2006-01-02 15:04:05"`
 }
 
 func (c *CreatedScope) Build(_ context.Context, query *gorm.DB, _ ...SQLOption) *gorm.DB {

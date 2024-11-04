@@ -51,12 +51,15 @@ func (s sqlBuilders) Build(ctx context.Context, query *gorm.DB, opts ...SQLOptio
 type Pagination struct {
 	// 查询第几页
 	// Example: 1
+	// in: query
 	PageNum int `form:"page_num,default=1" json:"page_num" binding:"omitempty,min=0"`
 	// 查询每页显示条目
 	// Example: 100
+	// in: query
 	PageSize int `form:"page_size,default=20" json:"page_size" binding:"omitempty,min=-1"`
 	// 总计条目
 	// Example: 300
+	// swagger:ignore
 	Total int64 `form:"-" json:"total"`
 }
 
