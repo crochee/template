@@ -61,6 +61,12 @@ func WithGetOperatorType(getOperatorType func(ctx context.Context) string) Optio
 	}
 }
 
+func WithGetAdminID(getAdminID func(ctx context.Context) string) Option {
+	return func(o *option) {
+		o.getAdminID = getAdminID
+	}
+}
+
 func WithPushTimeout(pushTimeout time.Duration) Option {
 	return func(o *option) {
 		o.pushTimeout = pushTimeout
@@ -76,6 +82,7 @@ type option struct {
 	getOperatorID   func(ctx context.Context) string
 	getOperatorName func(ctx context.Context) string
 	getOperatorType func(ctx context.Context) string
+	getAdminID      func(ctx context.Context) string
 	pushTimeout     time.Duration
 }
 
@@ -128,6 +135,9 @@ func (c *RpcClient) send(ctx context.Context, req *amqprpc.Request) (*amqp.Deliv
 	}
 	if operatorType := c.getOperatorType(ctx); operatorType != "" {
 		req.WriteHeader(v.HeaderOperatorType, operatorType)
+	}
+	if adminID := c.getAdminID(ctx); adminID != "" {
+		req.WriteHeader(v.HeaderAdminID, adminID)
 	}
 
 	return c.client.Send(req)
